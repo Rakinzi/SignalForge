@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://signalforge.local/schemas/detection_result.json",
+  "title": "DetectionResult",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "flow_id",
+    "rules_triggered",
+    "anomaly_score",
+    "baseline",
+    "explanation"
+  ],
+  "properties": {
+    "schema_version": {"type": "string"},
+    "flow_id": {"type": "string"},
+    "rules_triggered": {"type": "array", "items": {"type": "string"}},
+    "anomaly_score": {"type": "number"},
+    "baseline": {"type": "object"},
+    "explanation": {"type": "string"}
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://signalforge.local/schemas/alert_event.json",
+  "title": "AlertEvent",
+  "type": "object",
+  "required": ["schema_version", "alert_id", "detection_id", "severity", "status", "summary"],
+  "properties": {
+    "schema_version": {"type": "string"},
+    "alert_id": {"type": "string"},
+    "detection_id": {"type": "string"},
+    "severity": {"type": "string"},
+    "status": {"type": "string"},
+    "summary": {"type": "string"}
+  }
+}

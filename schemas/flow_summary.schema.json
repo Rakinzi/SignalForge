@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://signalforge.local/schemas/flow_summary.json",
+  "title": "FlowSummary",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "flow_id",
+    "start_time",
+    "end_time",
+    "src_ip",
+    "dst_ip",
+    "src_port",
+    "dst_port",
+    "protocol",
+    "packet_count",
+    "byte_count",
+    "duration_ms",
+    "packet_rate"
+  ],
+  "properties": {
+    "schema_version": {"type": "string"},
+    "flow_id": {"type": "string"},
+    "start_time": {"type": "string", "format": "date-time"},
+    "end_time": {"type": "string", "format": "date-time"},
+    "src_ip": {"type": "string"},
+    "dst_ip": {"type": "string"},
+    "src_port": {"type": "integer"},
+    "dst_port": {"type": "integer"},
+    "protocol": {"type": "string"},
+    "packet_count": {"type": "integer"},
+    "byte_count": {"type": "integer"},
+    "duration_ms": {"type": "integer"},
+    "packet_rate": {"type": "number"},
+    "tcp_flags": {"type": "string"},
+    "direction": {"type": "string"},
+    "fwd_packets": {"type": "integer"},
+    "bwd_packets": {"type": "integer"},
+    "fwd_bytes": {"type": "integer"},
+    "bwd_bytes": {"type": "integer"}
+  }
+}

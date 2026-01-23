@@ -1,0 +1,9 @@
+pyproject.toml
+api/__init__.py
+api/app.py
+signalforge_api.egg-info/PKG-INFO
+signalforge_api.egg-info/SOURCES.txt
+signalforge_api.egg-info/dependency_links.txt
+signalforge_api.egg-info/entry_points.txt
+signalforge_api.egg-info/requires.txt
+signalforge_api.egg-info/top_level.txt

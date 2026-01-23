@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://signalforge.local/schemas/audit_log_entry.json",
+  "title": "AuditLogEntry",
+  "type": "object",
+  "required": ["schema_version", "event", "actor", "occurred_at"],
+  "properties": {
+    "schema_version": {"type": "string"},
+    "event": {"type": "string"},
+    "actor": {"type": "string"},
+    "occurred_at": {"type": "string", "format": "date-time"},
+    "metadata": {"type": "object"}
+  }
+}

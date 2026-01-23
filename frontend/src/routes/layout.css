@@ -1,0 +1,107 @@
+@import 'tailwindcss';
+@plugin '@tailwindcss/forms';
+@plugin '@tailwindcss/typography';
+
+/* Cyber Security Theme - Dark/Light Mode Support */
+@theme {
+	/* Light Mode Colors */
+	--color-cyber-50: #e6f0ff;
+	--color-cyber-100: #b3d9ff;
+	--color-cyber-200: #80c2ff;
+	--color-cyber-300: #4dabff;
+	--color-cyber-400: #1a94ff;
+	--color-cyber-500: #007bff;
+	--color-cyber-600: #0062cc;
+	--color-cyber-700: #004999;
+	--color-cyber-800: #003166;
+	--color-cyber-900: #001833;
+
+	/* Neon Accent Colors */
+	--color-neon-cyan: #00ffff;
+	--color-neon-magenta: #ff00ff;
+	--color-neon-green: #00ff41;
+	--color-neon-red: #ff0040;
+	--color-neon-yellow: #ffff00;
+	--color-neon-purple: #9d00ff;
+
+	/* Alert/Status Colors */
+	--color-critical: #ff0040;
+	--color-high: #ff6600;
+	--color-medium: #ffaa00;
+	--color-low: #ffdd00;
+	--color-info: #00c3ff;
+	--color-success: #00ff41;
+
+	/* Dark Mode Base */
+	--color-dark-bg: #0a0e1a;
+	--color-dark-surface: #141827;
+	--color-dark-border: #1e2533;
+	--color-dark-text: #e2e8f0;
+	--color-dark-text-muted: #94a3b8;
+}
+
+/* Base Styles */
+:root {
+	/* Light mode defaults */
+	--bg-primary: white;
+	--bg-secondary: #f8fafc;
+	--bg-tertiary: #f1f5f9;
+	--text-primary: #0f172a;
+	--text-secondary: #475569;
+	--text-tertiary: #64748b;
+	--border-color: #e2e8f0;
+	--border-color-hover: #cbd5e1;
+
+	/* Cyber accent */
+	--accent-primary: var(--color-cyber-600);
+	--accent-secondary: var(--color-neon-cyan);
+	--accent-glow: rgba(0, 123, 255, 0.3);
+}
+
+/* Dark Mode */
+@media (prefers-color-scheme: dark) {
+	:root {
+		--bg-primary: var(--color-dark-bg);
+		--bg-secondary: var(--color-dark-surface);
+		--bg-tertiary: var(--color-dark-border);
+		--text-primary: var(--color-dark-text);
+		--text-secondary: var(--color-dark-text-muted);
+		--text-tertiary: #64748b;
+		--border-color: #334155;
+		--border-color-hover: #475569;
+
+		--accent-primary: var(--color-neon-cyan);
+		--accent-secondary: var(--color-neon-magenta);
+		--accent-glow: rgba(0, 255, 255, 0.2);
+	}
+}
+
+/* Manual dark mode toggle */
+[data-theme='dark'] {
+	--bg-primary: var(--color-dark-bg);
+	--bg-secondary: var(--color-dark-surface);
+	--bg-tertiary: var(--color-dark-border);
+	--text-primary: var(--color-dark-text);
+	--text-secondary: var(--color-dark-text-muted);
+	--text-tertiary: #64748b;
+	--border-color: #334155;
+	--border-color-hover: #475569;
+
+	--accent-primary: var(--color-neon-cyan);
+	--accent-secondary: var(--color-neon-magenta);
+	--accent-glow: rgba(0, 255, 255, 0.2);
+}
+
+body {
+	@apply bg-(--bg-primary) text-(--text-primary) antialiased;
+	font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* Cyber glow effect utility */
+.cyber-glow {
+	box-shadow: 0 0 20px var(--accent-glow);
+}
+
+.cyber-glow-text {
+	text-shadow: 0 0 10px var(--accent-glow);
+}

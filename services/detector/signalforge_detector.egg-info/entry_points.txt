@@ -1,0 +1,2 @@
+[console_scripts]
+run-detector = detector.app:main

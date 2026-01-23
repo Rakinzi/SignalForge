@@ -1,0 +1,18 @@
+[project]
+name = "signalforge-detector"
+version = "0.1.0"
+description = "Flow analytics and detection engine"
+requires-python = ">=3.11"
+dependencies = [
+  "redis>=5.0.0",
+  "pydantic>=2.6.0",
+  "sqlalchemy>=2.0.0",
+  "psycopg[binary]>=3.1.0",
+  "uvicorn>=0.27.0",
+]
+
+[project.scripts]
+run-detector = "detector.app:main"
+
+[tool.uv]
+package = true

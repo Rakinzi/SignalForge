@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://signalforge.local/schemas/event_envelope.json",
+  "title": "EventEnvelope",
+  "type": "object",
+  "required": ["schema_version", "event_type", "occurred_at", "payload"],
+  "properties": {
+    "schema_version": {"type": "string"},
+    "event_type": {"type": "string"},
+    "occurred_at": {"type": "string", "format": "date-time"},
+    "payload": {"type": "object"}
+  }
+}

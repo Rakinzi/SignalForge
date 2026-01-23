@@ -1,0 +1,105 @@
+services:
+  api:
+    build:
+      context: ../services/api
+    volumes:
+      - ../services/api:/app
+    environment:
+      DATABASE_URL: postgresql+psycopg://signalforge:signalforge@postgres:5432/signalforge
+      PORT: 8000
+      JWT_SECRET: ${JWT_SECRET:-change-me}
+      JWT_EXPIRE_MIN: ${JWT_EXPIRE_MIN:-60}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin}
+      ANALYST_PASSWORD: ${ANALYST_PASSWORD:-analyst}
+      VIEWER_PASSWORD: ${VIEWER_PASSWORD:-viewer}
+    # no host port in dev; access via nginx
+    command: ["uv", "run", "uvicorn", "api.app:app", "--reload", "--host", "0.0.0.0", "--port", "8000"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  detector:
+    build:
+      context: ../services/detector
+    volumes:
+      - ../services/detector:/app
+    environment:
+      REDIS_ADDR: redis:6379
+      REDIS_STREAM: flows
+      REDIS_GROUP: detector
+      REDIS_CONSUMER: detector-1
+      DATABASE_URL: postgresql+psycopg://signalforge:signalforge@postgres:5432/signalforge
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+
+  collector:
+    build:
+      context: ../services/collector
+    environment:
+      REDIS_ADDR: redis:6379
+      REDIS_STREAM: flows
+      CAPTURE_MODE: ${CAPTURE_MODE:-auto}
+      CAPTURE_IFACE: ${CAPTURE_IFACE:-}
+      PCAP_PATH: ${PCAP_PATH:-}
+      BPF_FILTER: ${BPF_FILTER:-}
+      FLOW_IDLE_TIMEOUT: ${FLOW_IDLE_TIMEOUT:-10s}
+      FLOW_MAX_DURATION: ${FLOW_MAX_DURATION:-5m}
+      FLUSH_INTERVAL: ${FLUSH_INTERVAL:-2s}
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  frontend:
+    image: oven/bun:1.2.21-alpine
+    working_dir: /app
+    volumes:
+      - ../frontend:/app
+      - frontend_node_modules:/app/node_modules
+      - frontend_svelte:/app/.svelte-kit
+    environment:
+      VITE_API_URL: ${VITE_API_URL:-http://localhost:8000}
+      PORT: 3000
+    # no host port in dev; access via nginx
+    command: ["sh", "-lc", "bun install && bun run dev --host 0.0.0.0 --port 3000"]
+    depends_on:
+      - api
+
+  nginx:
+    image: nginx:1.27-alpine
+    ports:
+      - "${NGINX_PORT:-8089}:80"
+    volumes:
+      - ./nginx.dev.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx-errors:/usr/share/nginx/html/errors:ro
+    depends_on:
+      - frontend
+      - api
+
+  redis:
+    image: redis:7-alpine
+    # no host port in dev
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: signalforge
+      POSTGRES_USER: signalforge
+      POSTGRES_PASSWORD: signalforge
+    # no host port in dev
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U signalforge"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  frontend_node_modules:
+  frontend_svelte:

@@ -1,0 +1,95 @@
+services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: signalforge
+      POSTGRES_USER: signalforge
+      POSTGRES_PASSWORD: signalforge
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U signalforge"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  collector:
+    build:
+      context: ../services/collector
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment:
+      REDIS_ADDR: redis:6379
+      REDIS_STREAM: flows
+      CAPTURE_MODE: ${CAPTURE_MODE:-auto}
+      CAPTURE_IFACE: ${CAPTURE_IFACE:-}
+      PCAP_PATH: ${PCAP_PATH:-}
+      BPF_FILTER: ${BPF_FILTER:-}
+      FLOW_IDLE_TIMEOUT: ${FLOW_IDLE_TIMEOUT:-10s}
+      FLOW_MAX_DURATION: ${FLOW_MAX_DURATION:-5m}
+      FLUSH_INTERVAL: ${FLUSH_INTERVAL:-2s}
+
+  detector:
+    build:
+      context: ../services/detector
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    environment:
+      REDIS_ADDR: redis:6379
+      REDIS_STREAM: flows
+      REDIS_GROUP: detector
+      REDIS_CONSUMER: detector-1
+      DATABASE_URL: postgresql+psycopg://signalforge:signalforge@postgres:5432/signalforge
+
+  api:
+    build:
+      context: ../services/api
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql+psycopg://signalforge:signalforge@postgres:5432/signalforge
+      PORT: 8000
+      JWT_SECRET: ${JWT_SECRET:-change-me}
+      JWT_EXPIRE_MIN: ${JWT_EXPIRE_MIN:-60}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin}
+      ANALYST_PASSWORD: ${ANALYST_PASSWORD:-analyst}
+      VIEWER_PASSWORD: ${VIEWER_PASSWORD:-viewer}
+
+  frontend:
+    build:
+      context: ../frontend
+      args:
+        VITE_API_URL: ${VITE_API_URL:-/api}
+    environment:
+      PORT: 3000
+    depends_on:
+      api:
+        condition: service_started
+
+  nginx:
+    image: nginx:1.27-alpine
+    ports:
+      - "${NGINX_PORT:-8088}:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx-errors:/usr/share/nginx/html/errors:ro
+    depends_on:
+      - frontend
+      - api

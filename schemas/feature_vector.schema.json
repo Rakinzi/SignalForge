@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://signalforge.local/schemas/feature_vector.json",
+  "title": "FeatureVector",
+  "type": "object",
+  "required": ["schema_version", "flow_id", "features"],
+  "properties": {
+    "schema_version": {"type": "string"},
+    "flow_id": {"type": "string"},
+    "features": {
+      "type": "object",
+      "additionalProperties": {"type": "number"}
+    }
+  }
+}
