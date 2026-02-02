@@ -123,9 +123,9 @@
 	</div>
 	<div class="flex items-center gap-3">
 		{#if sseConnected}
-			<div class="flex items-center gap-2 px-3 py-2 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
-				<div class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-				<span class="text-sm text-green-700 dark:text-green-300">Live</span>
+			<div class="flex items-center gap-2 px-3 py-2 bg-green-50 dark:bg-emerald-950/30 rounded-lg border border-green-200 dark:border-emerald-800/50">
+				<div class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
+				<span class="text-sm text-green-700 dark:text-emerald-400">Live</span>
 			</div>
 		{:else}
 			<button
@@ -159,7 +159,7 @@
 	</div>
 	<div class="bg-[var(--bg-secondary)] rounded-lg border border-[var(--border-color)] p-4">
 		<p class="text-sm text-[var(--text-secondary)] mb-1">Resolved</p>
-		<p class="text-2xl font-semibold text-green-600 dark:text-green-400">{alertStats.resolved}</p>
+		<p class="text-2xl font-semibold text-green-600 dark:text-emerald-400">{alertStats.resolved}</p>
 	</div>
 </div>
 
@@ -240,7 +240,7 @@
 								Acknowledged
 							</span>
 						{:else}
-							<span class="px-3 py-1.5 bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200 rounded text-xs font-medium">
+							<span class="px-3 py-1.5 bg-green-100 dark:bg-emerald-950/40 text-green-800 dark:text-emerald-300 rounded text-xs font-medium">
 								Resolved
 							</span>
 						{/if}
@@ -253,7 +253,7 @@
 
 <!-- Pagination -->
 {#if filteredAlerts.length > pageSize}
-	<div class="flex items-center justify-between">
+	<div class="flex flex-col sm:flex-row items-center justify-between gap-4">
 		<div class="flex items-center gap-2">
 			<button
 				onclick={() => goToPage(currentPage - 1)}
@@ -281,7 +281,7 @@
 		</div>
 
 		<div class="flex items-center gap-2">
-			<label class="text-sm text-[var(--text-secondary)]">Per page:</label>
+			<label class="text-sm text-[var(--text-secondary)] hidden sm:inline">Per page:</label>
 			<select
 				bind:value={pageSize}
 				onchange={() => (currentPage = 1)}
@@ -292,6 +292,7 @@
 				<option value={10}>10</option>
 				<option value={25}>25</option>
 				<option value={50}>50</option>
+				<option value={100}>100</option>
 			</select>
 		</div>
 	</div>

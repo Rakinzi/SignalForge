@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { Icon } from 'svelte-hero-icons';
 	import { goto } from '$app/navigation';
+	import { onMount } from 'svelte';
 	import { clearToken } from '$lib/api/auth';
 
 	interface Props {
@@ -10,6 +11,17 @@
 	let { onMenuToggle }: Props = $props();
 
 	let showDropdown = $state(false);
+	let theme = $state<'light' | 'dark'>('light');
+
+	function applyTheme(next: 'light' | 'dark') {
+		theme = next;
+		document.documentElement.setAttribute('data-theme', theme);
+		localStorage.setItem('theme', theme);
+	}
+
+	function toggleTheme() {
+		applyTheme(theme === 'dark' ? 'light' : 'dark');
+	}
 
 	function toggleDropdown() {
 		showDropdown = !showDropdown;
@@ -44,6 +56,16 @@
 			closeDropdown();
 		}
 	}
+
+	onMount(() => {
+		const saved = localStorage.getItem('theme');
+		if (saved === 'light' || saved === 'dark') {
+			applyTheme(saved);
+			return;
+		}
+		const prefersDark = window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false;
+		applyTheme(prefersDark ? 'dark' : 'light');
+	});
 </script>
 
 <svelte:window onclick={handleClickOutside} />
@@ -65,6 +87,14 @@
 	</div>
 
 	<div class="flex items-center gap-2 md:gap-4">
+		<button
+			onclick={toggleTheme}
+			class="p-2 rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors"
+			aria-label="Toggle dark mode"
+			title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+		>
+			<Icon src={theme === 'dark' ? 'sun' : 'moon'} class="w-5 h-5 text-[var(--text-primary)]" />
+		</button>
 		<!-- Profile Dropdown -->
 		<div class="profile-dropdown relative">
 			<button

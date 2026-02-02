@@ -20,7 +20,7 @@
 	}
 
 	function getScoreBg(score: number): string {
-		if (score >= 0.9) return 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200';
+		if (score >= 0.9) return 'bg-green-100 dark:bg-emerald-950/40 text-green-800 dark:text-emerald-300';
 		if (score >= 0.7)
 			return 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-200';
 		return 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200';
@@ -171,7 +171,7 @@
 					</tr>
 					<tr>
 						<td
-							class="border border-[var(--border-color)] p-8 text-center bg-green-50 dark:bg-green-900/10"
+							class="border border-[var(--border-color)] p-8 text-center bg-green-50 dark:bg-emerald-950/20"
 						>
 							<div class="text-sm text-[var(--text-secondary)] mb-2">True Positive</div>
 							<div class="text-3xl font-semibold" style="color: var(--color-success)">

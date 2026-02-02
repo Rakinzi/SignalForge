@@ -1,0 +1,74 @@
+@startuml SignalForge_Sequence_Diagram
+!theme plain
+skinparam dpi 300
+skinparam backgroundColor #FFFFFF
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+
+title SignalForge End-to-End Flow Sequence
+
+actor "Security\nOperator" as Operator
+participant "UI\n(SvelteKit)" as UI
+participant "API\n(FastAPI)" as API
+box "Ingest Pipeline" #F5F5F5
+    participant "Collector\n(Go)" as Collector
+    participant "Redis\nStreams" as Redis
+    participant "Detector\n(Python)" as Detector
+end box
+database "PostgreSQL" as DB
+entity "Network" as Network
+
+== Data Ingestion ==
+
+Network -> Collector: 1. Raw packet headers
+activate Collector
+Collector -> Collector: Parse & aggregate flows
+Collector -> Redis: 2. Publish FlowEnded event
+deactivate Collector
+
+Redis -> Detector: 3. Consume flow summary
+activate Detector
+Detector -> Detector: Baseline learning\nAnomaly detection
+Detector -> DB: 4. Store flows, alerts,\nbaselines, entities
+deactivate Detector
+
+== Real-time Alerting ==
+
+DB -> API: 5. New alert trigger
+activate API
+API -> UI: 6. SSE push alert
+deactivate API
+UI -> Operator: 7. Display notification
+
+== Operator Query ==
+
+Operator -> UI: 8. Request flows/alerts
+activate UI
+UI -> API: 9. REST GET request
+activate API
+API -> DB: 10. SQL query
+activate DB
+DB --> API: 11. Result set
+deactivate DB
+API --> UI: 12. JSON response
+deactivate API
+UI -> UI: Render table/charts
+UI --> Operator: 13. Display data
+deactivate UI
+
+== Alert Acknowledgment ==
+
+Operator -> UI: 14. Acknowledge alert
+activate UI
+UI -> API: 15. PUT /alerts/{id}
+activate API
+API -> DB: 16. UPDATE alert status
+activate DB
+DB --> API: 17. Confirmation
+deactivate DB
+API --> UI: 18. Success response
+deactivate API
+UI --> Operator: 19. Update UI
+deactivate UI
+
+@enduml

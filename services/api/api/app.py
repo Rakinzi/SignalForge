@@ -694,8 +694,16 @@ def config(request: Request, user: Dict[str, str] = Depends(require_scope(SCOPE_
 
 
 @app.get("/stream/alerts")
-def stream_alerts(request: Request, token: str = Depends(oauth2_scheme)):
-    user = get_current_user(token)
+def stream_alerts(request: Request, token: Optional[str] = None, authorization: Optional[str] = None):
+    jwt_token = token
+    if not jwt_token and authorization:
+        parts = authorization.split()
+        if len(parts) == 2 and parts[0].lower() == "bearer":
+            jwt_token = parts[1]
+    if not jwt_token:
+        raise HTTPException(status_code=401, detail="missing_token")
+
+    user = get_current_user(jwt_token)
     if SCOPE_SSE_READ not in ROLE_SCOPES.get(user["role"], set()):
         raise HTTPException(status_code=403, detail="forbidden")
     write_audit(

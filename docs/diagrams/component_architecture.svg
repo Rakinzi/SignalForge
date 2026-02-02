@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="700" viewBox="0 0 1200 700">
+  <rect width="1200" height="700" fill="#0b0f14"/>
+  <text x="80" y="70" fill="#e5e7eb" font-size="24" font-family="system-ui">Component Architecture</text>
+
+  <rect x="90" y="140" width="240" height="120" rx="10" fill="#111827" stroke="#22d3ee" stroke-width="2"/>
+  <text x="120" y="205" fill="#e5e7eb" font-size="16" font-family="system-ui">Collector (Go)</text>
+
+  <rect x="380" y="140" width="240" height="120" rx="10" fill="#111827" stroke="#f97316" stroke-width="2"/>
+  <text x="410" y="205" fill="#e5e7eb" font-size="16" font-family="system-ui">Redis Streams</text>
+
+  <rect x="670" y="140" width="240" height="120" rx="10" fill="#111827" stroke="#a78bfa" stroke-width="2"/>
+  <text x="700" y="205" fill="#e5e7eb" font-size="16" font-family="system-ui">Detector (Python)</text>
+
+  <rect x="960" y="140" width="200" height="120" rx="10" fill="#111827" stroke="#22c55e" stroke-width="2"/>
+  <text x="990" y="205" fill="#e5e7eb" font-size="16" font-family="system-ui">Postgres</text>
+
+  <rect x="300" y="360" width="260" height="120" rx="10" fill="#111827" stroke="#38bdf8" stroke-width="2"/>
+  <text x="330" y="425" fill="#e5e7eb" font-size="16" font-family="system-ui">API (FastAPI)</text>
+
+  <rect x="650" y="360" width="260" height="120" rx="10" fill="#111827" stroke="#34d399" stroke-width="2"/>
+  <text x="690" y="425" fill="#e5e7eb" font-size="16" font-family="system-ui">UI (SvelteKit)</text>
+
+  <line x1="330" y1="200" x2="380" y2="200" stroke="#94a3b8" stroke-width="3" marker-end="url(#arrow)"/>
+  <line x1="620" y1="200" x2="670" y2="200" stroke="#94a3b8" stroke-width="3" marker-end="url(#arrow)"/>
+  <line x1="910" y1="200" x2="960" y2="200" stroke="#94a3b8" stroke-width="3" marker-end="url(#arrow)"/>
+  <line x1="790" y1="260" x2="790" y2="360" stroke="#94a3b8" stroke-width="3" marker-end="url(#arrow)"/>
+  <line x1="430" y1="480" x2="650" y2="480" stroke="#94a3b8" stroke-width="3" marker-end="url(#arrow)"/>
+
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="10" refY="5" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#94a3b8" />
+    </marker>
+  </defs>
+</svg>

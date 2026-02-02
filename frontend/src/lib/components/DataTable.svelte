@@ -6,7 +6,7 @@
 		columns: Array<{
 			key: keyof T;
 			label: string;
-			format?: (value: any) => string;
+			format?: (value: any, row: T) => string;
 		}>;
 		onRowClick?: (row: T) => void;
 		loading?: boolean;
@@ -46,7 +46,7 @@
 	}
 
 	// Generate page numbers to show
-	let visiblePages = $derived(() => {
+	let visiblePages = $derived.by(() => {
 		const pages: number[] = [];
 		const maxVisible = 5;
 
@@ -84,7 +84,7 @@
 		<table class="w-full">
 			<thead class="border-b border-[var(--border-color)]">
 				<tr class="bg-[var(--bg-tertiary)]">
-					{#each columns as column}
+					{#each columns as column (column.key)}
 						<th class="px-4 py-3 text-left text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider">
 							{column.label}
 						</th>
@@ -108,15 +108,15 @@
 						</td>
 					</tr>
 				{:else}
-					{#each paginatedData as row, i}
+					{#each paginatedData as row, i (i)}
 						<tr
 							class="hover:bg-[var(--bg-tertiary)] transition-colors {onRowClick ? 'cursor-pointer' : ''}"
 							onclick={() => onRowClick?.(row)}
 						>
-							{#each columns as column}
+							{#each columns as column (column.key)}
 								<td class="px-4 py-3 text-sm text-[var(--text-primary)]">
 									{#if column.format}
-										{column.format(row[column.key])}
+										{column.format(row[column.key], row)}
 									{:else}
 										{String(row[column.key])}
 									{/if}
@@ -150,7 +150,7 @@
 
 				<!-- Page numbers - hidden on mobile -->
 				<div class="hidden sm:flex items-center space-x-2">
-					{#each visiblePages() as page}
+					{#each visiblePages as page, pageIndex (pageIndex)}
 						{#if page === -1}
 							<span class="px-3 py-2 text-sm text-[var(--text-secondary)]">...</span>
 						{:else}
@@ -186,8 +186,9 @@
 
 			<!-- Page size selector -->
 			<div class="flex items-center space-x-2">
-				<label class="text-sm text-[var(--text-secondary)] hidden sm:inline">Per page:</label>
+				<label for="page-size" class="text-sm text-[var(--text-secondary)] hidden sm:inline">Per page:</label>
 				<select
+					id="page-size"
 					bind:value={pageSize}
 					onchange={() => (currentPage = 1)}
 					class="px-3 py-2 rounded-lg border border-[var(--border-color)] bg-[var(--bg-primary)]

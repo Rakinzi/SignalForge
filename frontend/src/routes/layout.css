@@ -19,7 +19,7 @@
 	/* Neon Accent Colors */
 	--color-neon-cyan: #00ffff;
 	--color-neon-magenta: #ff00ff;
-	--color-neon-green: #00ff41;
+	--color-neon-green: #10b981;
 	--color-neon-red: #ff0040;
 	--color-neon-yellow: #ffff00;
 	--color-neon-purple: #9d00ff;
@@ -30,7 +30,7 @@
 	--color-medium: #ffaa00;
 	--color-low: #ffdd00;
 	--color-info: #00c3ff;
-	--color-success: #00ff41;
+	--color-success: #10b981;
 
 	/* Dark Mode Base */
 	--color-dark-bg: #0a0e1a;

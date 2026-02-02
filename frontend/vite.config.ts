@@ -7,6 +7,18 @@ import { sveltekit } from '@sveltejs/kit/vite';
 export default defineConfig({
 	plugins: [tailwindcss(), sveltekit(), devtoolsJson()],
 
+	server: {
+		port: 5173,
+		strictPort: false,
+		hmr: {
+			// Use environment variable or fallback to localhost
+			host: process.env.HMR_HOST || 'localhost',
+			clientPort: process.env.HMR_PORT ? parseInt(process.env.HMR_PORT) : 5173,
+			// Disable overlay to prevent blocking the UI
+			overlay: false
+		}
+	},
+
 	test: {
 		expect: { requireAssertions: true },
 

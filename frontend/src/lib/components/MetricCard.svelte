@@ -25,7 +25,7 @@
 			</div>
 			{#if trend}
 				<div class="mt-2 flex items-center gap-1 text-sm">
-					<span class={trend.positive ? 'text-green-600' : 'text-red-600'}>
+					<span class={trend.positive ? 'text-green-600 dark:text-emerald-400' : 'text-red-600'}>
 						{trend.positive ? '↑' : '↓'} {Math.abs(trend.value)}%
 					</span>
 					<span class="text-[var(--text-tertiary)]">vs last hour</span>

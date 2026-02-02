@@ -102,7 +102,7 @@
 			<span
 				class="px-3 py-1 text-sm font-medium rounded-full
 				{config.detector_enabled
-					? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200'
+					? 'bg-green-100 dark:bg-emerald-950/40 text-green-800 dark:text-emerald-300'
 					: 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200'}"
 			>
 				{config.detector_enabled ? 'Enabled' : 'Disabled'}

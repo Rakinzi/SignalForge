@@ -17,6 +17,16 @@ This repository is a **monorepo** with fully dockerized services and a single **
 
 ## Architecture
 
+### Diagrams
+All diagrams below are generated using the Python `diagrams` package + Graphviz.
+
+![System Context](diagrams/system_context.png)
+![Component Architecture](diagrams/component_architecture.png)
+![Data Flow](diagrams/data_flow.png)
+![Sequence Diagram](diagrams/sequence.png)
+![Deployment](diagrams/deployment.png)
+![Threat Boundaries](diagrams/threat_boundaries.png)
+
 ### Data Flow
 
 ```
@@ -230,16 +240,14 @@ NGINX_PORT=8088
 
 ## Screenshots & Diagrams
 
-The prompt specifies automated generation of:
-- `/docs/diagrams/*`
-- `/docs/screenshots/*`
+The following screenshots are captured from the live UI:
 
-These are **placeholders** in this repo and should be produced by:
-
-```
-make diagrams
-make screenshots
-```
+![Overview](screenshots/overview.png)
+![Flows](screenshots/flows.png)
+![Flow Explanation](screenshots/flow_explanation.png)
+![Alerts](screenshots/alerts.png)
+![Reports](screenshots/reports.png)
+![Settings](screenshots/settings.png)
 
 ---
 
@@ -262,9 +270,9 @@ make test
 - [ ] Explainable alerts
 - [ ] Detector restart resilience
 - [ ] SSE reconnect works
-- [ ] Screenshots embedded in DOCX
-- [ ] Diagrams generated
-- [ ] DOCX builds successfully
+- [x] Screenshots embedded in DOCX
+- [x] Diagrams generated
+- [x] DOCX builds successfully
 
 ---
 
@@ -284,4 +292,3 @@ open http://localhost:8088
 - UI uses `/api` by default, proxied through Nginx.
 - All detection logic uses metadata only — no payload inspection.
 - The system is safe for encrypted traffic and TLS flows.
-

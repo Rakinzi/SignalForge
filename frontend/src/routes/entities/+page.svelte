@@ -129,7 +129,7 @@
 	</div>
 	<div class="bg-[var(--bg-secondary)] rounded-lg border border-[var(--border-color)] p-4">
 		<p class="text-sm text-[var(--text-secondary)] mb-1">Hosts</p>
-		<p class="text-2xl font-semibold text-green-600 dark:text-green-400">{entityStats.host}</p>
+		<p class="text-2xl font-semibold text-green-600 dark:text-emerald-400">{entityStats.host}</p>
 	</div>
 </div>
 

@@ -1,0 +1,25 @@
+digraph "End-to-End Sequence" {
+	graph [fontcolor="#2D3436" fontname=Helvetica fontsize=16 forcelabels=true label="End-to-End Sequence" nodesep=0.9 pad=0.3 rankdir=LR ranksep=1.2 splines=ortho]
+	node [fillcolor="#E7F3FF" fixedsize=true fontcolor="#2D3436" fontname=Helvetica fontsize=11 height=1.4 imagescale=true labelloc=b shape=box style="rounded,filled" width=1.4]
+	edge [arrowsize=0.7 color="#4B5563" fontname=Helvetica fontsize=9 labeldistance=1.6 labelfontsize=9 penwidth=1.2]
+	"20e142195d934ee8a7524be3deb35227" -> bb5f0a633698461faadbb6f3d129bda5 [dir=forward fontcolor="#2D3436" fontname="Sans-Serif" fontsize=13 labelangle=-15 labeldistance=1.4 minlen=3 xlabel="1. packet headers"]
+	bb5f0a633698461faadbb6f3d129bda5 -> "98d892492305443db747535eada34cf4" [dir=forward fontcolor="#2D3436" fontname="Sans-Serif" fontsize=13 labelangle=-15 labeldistance=1.4 minlen=3 xlabel="2. FlowEnded"]
+	"98d892492305443db747535eada34cf4" -> "7f771ac1cee04e698637d1972015ee99" [dir=forward fontcolor="#2D3436" fontname="Sans-Serif" fontsize=13 labelangle=-15 labeldistance=1.4 minlen=3 xlabel="3. flow summaries"]
+	"7f771ac1cee04e698637d1972015ee99" -> "7b69581e43ce4644ac10673055b627ca" [dir=forward fontcolor="#2D3436" fontname="Sans-Serif" fontsize=13 labelangle=-10 labeldistance=1.6 minlen=4 xlabel="4. write flows + alerts"]
+	subgraph "cluster_Ingest Path" {
+		graph [bgcolor="#E5F5FD" fontname="Sans-Serif" fontsize=12 label="Ingest Path" labeljust=l pencolor="#AEB6BE" rankdir=LR shape=box style=rounded]
+		"20e142195d934ee8a7524be3deb35227" [label="Network Packets" fillcolor="#E8F5E9" shape=circle style=filled]
+		bb5f0a633698461faadbb6f3d129bda5 [label=Collector fillcolor="#E7F3FF" shape=box style="rounded,filled"]
+		"98d892492305443db747535eada34cf4" [label="Redis Streams" fillcolor="#FFF3E0" shape=cylinder style=filled]
+		"7f771ac1cee04e698637d1972015ee99" [label=Detector fillcolor="#E7F3FF" shape=box style="rounded,filled"]
+		"7b69581e43ce4644ac10673055b627ca" [label=PostgreSQL fillcolor="#FFF3E0" shape=cylinder style=filled]
+	}
+	"5cb2ea837b99453fb8af017bc2e74f7e" -> "58fe36fab4084772939d1b484c3f3b9e" [dir=forward fontcolor="#2D3436" fontname="Sans-Serif" fontsize=13 labelangle=15 labeldistance=1.4 minlen=3 xlabel="7. REST + SSE"]
+	"58fe36fab4084772939d1b484c3f3b9e" -> "5cb2ea837b99453fb8af017bc2e74f7e" [dir=forward fontcolor="#2D3436" fontname="Sans-Serif" fontsize=13 labelangle=-15 labeldistance=1.4 minlen=3 xlabel="5. queries"]
+	"5cb2ea837b99453fb8af017bc2e74f7e" -> "7b69581e43ce4644ac10673055b627ca" [dir=forward fontcolor="#2D3436" fontname="Sans-Serif" fontsize=13 labelangle=25 labeldistance=1.6 minlen=3 xlabel="6. SQL read"]
+	subgraph "cluster_UI Path" {
+		graph [bgcolor="#E5F5FD" fontname="Sans-Serif" fontsize=12 label="UI Path" labeljust=l pencolor="#AEB6BE" rankdir=LR shape=box style=rounded]
+		"5cb2ea837b99453fb8af017bc2e74f7e" [label=API fillcolor="#E7F3FF" shape=box style="rounded,filled"]
+		"58fe36fab4084772939d1b484c3f3b9e" [label="Operator UI" fillcolor="#E8F5E9" shape=circle style=filled]
+	}
+}
