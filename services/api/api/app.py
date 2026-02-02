@@ -6,11 +6,10 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Dict, Optional, Set, AsyncGenerator, Mapping, Any
 
-from fastapi import Depends, FastAPI, HTTPException, Request, status
+from fastapi import Depends, FastAPI, Form, HTTPException, Request, status
 from fastapi.responses import StreamingResponse
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-from jose import JWTError, jwt
-from passlib.context import CryptContext
+from fastapi.security import OAuth2PasswordRequestForm
+from jose import jwt
 from sqlalchemy import (
     Column,
     DateTime,
@@ -27,16 +26,30 @@ from sqlalchemy import (
 )
 
 DATABASE_URL = os.getenv("DATABASE_URL", "")
-JWT_SECRET = os.getenv("JWT_SECRET", "change-me")
-JWT_ALG = "HS256"
-JWT_EXPIRE_MIN = int(os.getenv("JWT_EXPIRE_MIN", "60"))
+from .auth import (
+    JWT_ALG,
+    JWT_EXPIRE_MIN,
+    JWT_SECRET,
+    ROLE_SCOPES,
+    SCOPE_ALERTS_ACK,
+    SCOPE_ALERTS_READ,
+    SCOPE_AUDIT_READ,
+    SCOPE_BASELINES_READ,
+    SCOPE_CONFIG_READ,
+    SCOPE_DETECTIONS_READ,
+    SCOPE_FLOWS_READ,
+    SCOPE_METRICS_READ,
+    SCOPE_REPORTS_READ,
+    SCOPE_SSE_READ,
+    get_current_user,
+    pwd_context,
+    require_role,
+    require_scope,
+    verify_password,
+)
 
 if not DATABASE_URL:
     raise RuntimeError("DATABASE_URL must be set")
-
-pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
-
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token")
 
 engine = create_engine(DATABASE_URL, pool_pre_ping=True)
 metadata = MetaData()
@@ -119,10 +132,26 @@ evaluations = Table(
     Column("notes", Text, nullable=False),
 )
 
+users = Table(
+    "users",
+    metadata,
+    Column("id", String, primary_key=True),
+    Column("username", String, nullable=False, unique=True),
+    Column("email", String, nullable=False, unique=True),
+    Column("hashed_password", String, nullable=False),
+    Column("role", String, nullable=False),
+    Column("is_active", Integer, nullable=False, default=1),
+    Column("created_at", DateTime, nullable=False),
+)
+
 metadata.create_all(engine)
 
 app = FastAPI(title="SignalForge API")
 START_TIME = time.time()
+
+# Include detection endpoints
+from .detection_endpoints import router as detection_router
+app.include_router(detection_router)
 
 
 @app.middleware("http")
@@ -165,11 +194,15 @@ def build_users() -> Dict[str, Dict[str, str]]:
 USERS = build_users()
 
 
-def verify_password(plain: str, hashed: str) -> bool:
-    return pwd_context.verify(plain, hashed)
 
 
 def authenticate_user(username: str, password: str) -> Optional[Dict[str, str]]:
+    # Try database first
+    user = get_user_from_db(username)
+    if user and verify_password(password, user["hashed_password"]):
+        return {"username": user["username"], "role": user["role"]}
+
+    # Fall back to hardcoded users (for backwards compatibility)
     user = USERS.get(username)
     if not user:
         return None
@@ -184,79 +217,6 @@ def create_access_token(data: Dict[str, str], expires_delta: timedelta) -> str:
     return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALG)
 
 
-def get_current_user(token: str = Depends(oauth2_scheme)) -> Dict[str, str]:
-    try:
-        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALG])
-        username = payload.get("sub")
-        role = payload.get("role")
-        if not username or not role:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="invalid_token")
-        return {"username": username, "role": role}
-    except JWTError as exc:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="invalid_token") from exc
-
-
-def require_role(*roles: str):
-    def checker(user: Dict[str, str] = Depends(get_current_user)) -> Dict[str, str]:
-        if user["role"] not in roles:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="forbidden")
-        return user
-
-    return checker
-
-
-SCOPE_FLOWS_READ = "flows:read"
-SCOPE_ALERTS_READ = "alerts:read"
-SCOPE_ALERTS_ACK = "alerts:ack"
-SCOPE_DETECTIONS_READ = "detections:read"
-SCOPE_BASELINES_READ = "baselines:read"
-SCOPE_AUDIT_READ = "audit:read"
-SCOPE_METRICS_READ = "metrics:read"
-SCOPE_REPORTS_READ = "reports:read"
-SCOPE_CONFIG_READ = "config:read"
-SCOPE_SSE_READ = "sse:read"
-
-ROLE_SCOPES: Dict[str, Set[str]] = {
-    "admin": {
-        SCOPE_FLOWS_READ,
-        SCOPE_ALERTS_READ,
-        SCOPE_ALERTS_ACK,
-        SCOPE_DETECTIONS_READ,
-        SCOPE_BASELINES_READ,
-        SCOPE_AUDIT_READ,
-        SCOPE_METRICS_READ,
-        SCOPE_REPORTS_READ,
-        SCOPE_CONFIG_READ,
-        SCOPE_SSE_READ,
-    },
-    "analyst": {
-        SCOPE_FLOWS_READ,
-        SCOPE_ALERTS_READ,
-        SCOPE_ALERTS_ACK,
-        SCOPE_DETECTIONS_READ,
-        SCOPE_BASELINES_READ,
-        SCOPE_METRICS_READ,
-        SCOPE_REPORTS_READ,
-        SCOPE_SSE_READ,
-    },
-    "viewer": {
-        SCOPE_FLOWS_READ,
-        SCOPE_ALERTS_READ,
-        SCOPE_BASELINES_READ,
-        SCOPE_METRICS_READ,
-        SCOPE_SSE_READ,
-    },
-}
-
-
-def require_scope(scope: str):
-    def checker(user: Dict[str, str] = Depends(get_current_user)) -> Dict[str, str]:
-        scopes = ROLE_SCOPES.get(user["role"], set())
-        if scope not in scopes:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="forbidden")
-        return user
-
-    return checker
 
 
 @app.post("/auth/token")
@@ -281,6 +241,66 @@ def login(request: Request, form_data: OAuth2PasswordRequestForm = Depends()):
         request_id=get_request_id(request),
     )
     return {"access_token": token, "token_type": "bearer"}
+
+
+@app.post("/auth/register")
+def register(
+    request: Request,
+    username: str = Form(...),
+    email: str = Form(...),
+    password: str = Form(...),
+    role: str = Form("viewer"),
+):
+    """Register a new user"""
+    # Validate role
+    if role not in ROLE_SCOPES:
+        raise HTTPException(status_code=400, detail="invalid_role")
+
+    # Check if username or email already exists
+    with engine.begin() as conn:
+        existing = conn.execute(
+            select(users).where((users.c.username == username) | (users.c.email == email))
+        ).first()
+
+        if existing:
+            raise HTTPException(status_code=400, detail="user_already_exists")
+
+        # Create user
+        user_id = f"user-{int(time.time() * 1000)}"
+        hashed_password = pwd_context.hash(password)
+
+        conn.execute(
+            users.insert().values(
+                id=user_id,
+                username=username,
+                email=email,
+                hashed_password=hashed_password,
+                role=role,
+                is_active=1,
+                created_at=datetime.now(timezone.utc),
+            )
+        )
+
+    write_audit(
+        event="user_registered",
+        actor=username,
+        metadata={"role": role, "email": email},
+        request_id=get_request_id(request),
+    )
+
+    return {"status": "registered", "username": username, "role": role}
+
+
+def get_user_from_db(username: str) -> Optional[Dict[str, Any]]:
+    """Get user from database"""
+    with engine.begin() as conn:
+        row = conn.execute(
+            select(users).where(users.c.username == username)
+        ).mappings().first()
+
+        if row:
+            return dict(row)
+    return None
 
 
 @app.get("/auth/me")

@@ -3,12 +3,16 @@
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
 	import { clearToken } from '$lib/api/auth';
+	import { authStore, currentUser } from '$lib/stores/auth';
 
 	interface Props {
 		onMenuToggle?: () => void;
 	}
 
 	let { onMenuToggle }: Props = $props();
+
+	// Get current user from auth store
+	let user = $derived($currentUser);
 
 	let showDropdown = $state(false);
 	let theme = $state<'light' | 'dark'>('light');
@@ -43,10 +47,8 @@
 
 	function handleLogout() {
 		closeDropdown();
-		// Clear auth token
-		clearToken();
-		// Redirect to home
-		goto('/');
+		// Use auth store logout (handles token clearing and redirect)
+		authStore.logout();
 	}
 
 	// Close dropdown when clicking outside
@@ -104,8 +106,14 @@
 				<div
 					class="w-8 h-8 rounded-full bg-[var(--accent-primary)] flex items-center justify-center text-white text-sm font-semibold"
 				>
-					U
+					{user?.username?.[0]?.toUpperCase() || 'U'}
 				</div>
+				{#if user}
+					<div class="hidden md:block text-left">
+						<div class="text-sm font-medium text-[var(--text-primary)]">{user.username}</div>
+						<div class="text-xs text-[var(--text-secondary)] capitalize">{user.role}</div>
+					</div>
+				{/if}
 				<Icon src="chevron-down" class="w-4 h-4 text-[var(--text-secondary)] hidden sm:block" />
 			</button>
 

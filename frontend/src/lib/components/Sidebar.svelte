@@ -12,8 +12,10 @@
 	const navItems = [
 		{ label: 'Overview', href: '/', icon: 'squares-2x2' },
 		{ label: 'Flows', href: '/flows', icon: 'arrows-right-left' },
+		{ label: 'Detection', href: '/detection', icon: 'shield-check' },
 		{ label: 'Alerts', href: '/alerts', icon: 'exclamation-triangle' },
 		{ label: 'Entities', href: '/entities', icon: 'cube' },
+		{ label: 'Evaluation', href: '/evaluation', icon: 'chart-pie' },
 		{ label: 'Reports', href: '/reports', icon: 'chart-bar' },
 		{ label: 'Settings', href: '/settings', icon: 'cog-6-tooth' }
 	];
