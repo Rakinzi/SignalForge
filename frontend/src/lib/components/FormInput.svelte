@@ -4,16 +4,19 @@
 		value: string;
 		placeholder?: string;
 		type?: 'text' | 'number' | 'email';
+		id?: string;
 	}
 
-	let { label, value = $bindable(''), placeholder = '', type = 'text' }: Props = $props();
+	let { label, value = $bindable(''), placeholder = '', type = 'text', id }: Props = $props();
+	let inputId = $derived(id ?? `input-${label.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`);
 </script>
 
 <div>
-	<label class="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">
+	<label for={inputId} class="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">
 		{label}
 	</label>
 	<input
+		id={inputId}
 		{type}
 		bind:value
 		{placeholder}

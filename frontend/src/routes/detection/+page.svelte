@@ -1,103 +1,142 @@
 <script lang="ts">
-	import { Icon } from 'svelte-hero-icons';
+	import Icon from '$lib/components/Icon.svelte';
 	import MetricCard from '$lib/components/MetricCard.svelte';
 	import DataTable from '$lib/components/DataTable.svelte';
+	import PageStateLoading from '$lib/components/PageStateLoading.svelte';
+	import PageStateEmpty from '$lib/components/PageStateEmpty.svelte';
+	import PageStateForbidden from '$lib/components/PageStateForbidden.svelte';
+	import PageStateError from '$lib/components/PageStateError.svelte';
 	import { onMount } from 'svelte';
+	import { getDetections, normalizeApiError } from '$lib/api/client';
 
 	interface Detection {
 		flow_id: string;
-		threat_level: string;
-		confidence: number;
+		created_at: string;
+		rules_triggered: string[];
+		anomaly_score: number;
 		explanation: string;
-		deterministic: {
-			classification: string;
-			triggered_rules: Array<{ id: string; name: string; severity: string; category: string }>;
-		};
-		statistical: {
-			anomaly_score: number;
-			anomalous_features: string[];
-		};
-		requires_investigation: boolean;
 	}
 
-	let detections = $state<Detection[]>([]);
-	let isLoading = $state(true);
-	let currentPage = $state(1);
-	let totalDetections = $state(0);
+	interface DetectionRow {
+		confidence: number;
+		threat_level: 'critical' | 'high' | 'medium' | 'low' | 'benign';
+		requires_investigation: boolean;
+		flow_id: string;
+		rules_triggered: string;
+		created_at: string;
+		explanation: string;
+	}
 
-	// Stats
+	type ThreatLevel = DetectionRow['threat_level'];
+
+	let detections = $state<DetectionRow[]>([]);
+	let isLoading = $state(true);
+	let error = $state<string | null>(null);
+	let isForbidden = $state(false);
+
 	let stats = $derived({
 		critical: detections.filter((d) => d.threat_level === 'critical').length,
 		high: detections.filter((d) => d.threat_level === 'high').length,
 		medium: detections.filter((d) => d.threat_level === 'medium').length,
+		low: detections.filter((d) => d.threat_level === 'low').length,
 		benign: detections.filter((d) => d.threat_level === 'benign').length,
 		needsInvestigation: detections.filter((d) => d.requires_investigation).length
 	});
 
-	// Table columns
-	const columns = [
-		{ key: 'flow_id', label: 'Flow ID', sortable: true },
+	const columns: Array<{
+		key: keyof DetectionRow;
+		label: string;
+		format?: (value: unknown) => string;
+	}> = [
+		{ key: 'flow_id', label: 'Flow ID' },
 		{
 			key: 'threat_level',
 			label: 'Threat Level',
-			sortable: true,
-			formatter: (value: string) => {
-				const colors = {
-					critical: 'text-[var(--color-critical)]',
-					high: 'text-[var(--color-high)]',
-					medium: 'text-[var(--color-medium)]',
-					low: 'text-[var(--color-low)]',
-					benign: 'text-[var(--color-success)]'
-				};
-				return `<span class="font-semibold ${colors[value] || ''}">${value.toUpperCase()}</span>`;
-			}
+			format: (value: unknown) => String(value).toUpperCase()
 		},
 		{
 			key: 'confidence',
 			label: 'Confidence',
-			sortable: true,
-			formatter: (value: number) => `${(value * 100).toFixed(1)}%`
+			format: (value: unknown) => `${(Number(value) * 100).toFixed(1)}%`
+		},
+		{ key: 'rules_triggered', label: 'Rules Triggered' },
+		{
+			key: 'created_at',
+			label: 'Detected At',
+			format: (value: unknown) => new Date(String(value)).toLocaleString()
 		},
 		{
-			key: 'deterministic',
-			label: 'Rules Triggered',
-			formatter: (value: Detection['deterministic']) => value.triggered_rules.length.toString()
-		},
-		{
-			key: 'statistical',
-			label: 'Anomaly Score',
-			formatter: (value: Detection['statistical']) => (value.anomaly_score * 100).toFixed(1) + '%'
+			key: 'explanation',
+			label: 'Explanation',
+			format: (value: unknown) => {
+				const text = String(value);
+				return text.length > 96 ? `${text.slice(0, 96)}...` : text;
+			}
 		},
 		{
 			key: 'requires_investigation',
 			label: 'Investigation',
-			formatter: (value: boolean) =>
-				value
-					? '<span class="text-[var(--color-medium)]">Required</span>'
-					: '<span class="text-[var(--text-secondary)]">No</span>'
+			format: (value: unknown) => (Boolean(value) ? 'Required' : 'No')
 		}
 	];
 
+	function threatLevelFromScore(score: number): ThreatLevel {
+		if (score >= 0.9) return 'critical';
+		if (score >= 0.75) return 'high';
+		if (score >= 0.55) return 'medium';
+		if (score >= 0.35) return 'low';
+		return 'benign';
+	}
+
+	function parseRules(value: unknown): string[] {
+		if (Array.isArray(value)) return value.map((v) => String(v));
+		if (typeof value !== 'string' || value.trim() === '') return [];
+		try {
+			const parsed = JSON.parse(value);
+			return Array.isArray(parsed) ? parsed.map((v) => String(v)) : [];
+		} catch {
+			return [];
+		}
+	}
+
+	function mapDetection(row: Detection): DetectionRow {
+		const score = Number(row.anomaly_score ?? 0);
+		const level = threatLevelFromScore(score);
+		const rules = parseRules(row.rules_triggered);
+
+		return {
+			flow_id: row.flow_id,
+			created_at: row.created_at,
+			confidence: score,
+			threat_level: level,
+			requires_investigation: score >= 0.75,
+			rules_triggered: rules.length > 0 ? rules.join(', ') : 'none',
+			explanation: row.explanation
+		};
+	}
+
 	async function loadDetections() {
 		isLoading = true;
+		error = null;
+		isForbidden = false;
 		try {
-			const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-			const response = await fetch(`${apiUrl}/detections?limit=50`);
-
-			if (response.ok) {
-				const data = await response.json();
-				detections = data.items || [];
-				totalDetections = data.total || detections.length;
+			const rows = (await getDetections({ limit: 50 })) as Detection[];
+			detections = rows.map(mapDetection);
+		} catch (err) {
+			detections = [];
+			const normalized = normalizeApiError(err, 'Failed to load detections');
+			if (normalized.kind === 'forbidden') {
+				isForbidden = true;
+			} else {
+				error = normalized.message;
 			}
-		} catch (error) {
-			console.error('Failed to load detections:', error);
 		} finally {
 			isLoading = false;
 		}
 	}
 
-	function getThreatColor(level: string): string {
-		const colors = {
+	function getThreatColor(level: ThreatLevel): string {
+		const colors: Record<ThreatLevel, string> = {
 			critical: 'var(--color-critical)',
 			high: 'var(--color-high)',
 			medium: 'var(--color-medium)',
@@ -109,7 +148,6 @@
 
 	onMount(() => {
 		loadDetections();
-		// Auto-refresh every 30 seconds
 		const interval = setInterval(loadDetections, 30000);
 		return () => clearInterval(interval);
 	});
@@ -120,95 +158,79 @@
 </svelte:head>
 
 <div class="space-y-6">
-	<!-- Header -->
-	<div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+	<div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 		<div>
 			<h1 class="text-2xl font-bold text-[var(--text-primary)]">Detection Dashboard</h1>
-			<p class="text-sm text-[var(--text-secondary)] mt-1">
+			<p class="mt-1 text-sm text-[var(--text-secondary)]">
 				Hybrid malware detection results (deterministic + statistical)
 			</p>
 		</div>
 		<button
 			onclick={loadDetections}
-			class="self-start sm:self-auto px-4 py-2 bg-[var(--accent-primary)] hover:bg-[var(--accent-primary)]/90 text-white rounded-lg transition-colors flex items-center gap-2"
+			class="self-start rounded-xl bg-[var(--accent-primary)] px-4 py-2 text-sm font-medium text-white transition hover:opacity-90 sm:self-auto"
 		>
-			<Icon src="arrow-path" class="w-4 h-4" />
-			<span>Refresh</span>
+			Refresh
 		</button>
 	</div>
 
-	<!-- Stats Cards -->
-	<div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-		<MetricCard
-			label="Critical"
-			value={stats.critical}
-			icon="shield-exclamation"
-			trend="neutral"
-			color={getThreatColor('critical')}
+	{#if isLoading}
+		<PageStateLoading label="Loading detections..." />
+	{:else if isForbidden}
+		<PageStateForbidden
+			title="Detection data requires elevated access"
+			message="Your current role can access high-level monitoring views, but not raw detection output."
+			requiredRole="analyst or admin"
 		/>
-		<MetricCard
-			label="High"
-			value={stats.high}
-			icon="exclamation-triangle"
-			trend="neutral"
-			color={getThreatColor('high')}
+	{:else if error}
+		<PageStateError message={error} onAction={loadDetections} />
+	{:else if detections.length === 0}
+		<PageStateEmpty
+			title="No detections available"
+			message="Start traffic analysis to populate this table."
+			icon="shield-check"
 		/>
-		<MetricCard
-			label="Medium"
-			value={stats.medium}
-			icon="exclamation-circle"
-			trend="neutral"
-			color={getThreatColor('medium')}
-		/>
-		<MetricCard
-			label="Benign"
-			value={stats.benign}
-			icon="check-circle"
-			trend="neutral"
-			color={getThreatColor('benign')}
-		/>
-		<MetricCard
-			label="Needs Investigation"
-			value={stats.needsInvestigation}
-			icon="magnifying-glass"
-			trend="neutral"
-			color="var(--color-medium)"
-		/>
-	</div>
-
-	<!-- Detection Table -->
-	<div class="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg p-6">
-		<div class="mb-4">
-			<h2 class="text-lg font-semibold text-[var(--text-primary)]">Recent Detections</h2>
-			<p class="text-sm text-[var(--text-secondary)] mt-1">
-				Showing detections from the hybrid detection pipeline
-			</p>
+	{:else}
+		<div class="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-5">
+			<MetricCard
+				label="Critical"
+				value={stats.critical}
+				icon="shield-exclamation"
+				color={getThreatColor('critical')}
+			/>
+			<MetricCard
+				label="High"
+				value={stats.high}
+				icon="exclamation-triangle"
+				color={getThreatColor('high')}
+			/>
+			<MetricCard
+				label="Medium"
+				value={stats.medium}
+				icon="exclamation-circle"
+				color={getThreatColor('medium')}
+			/>
+			<MetricCard
+				label="Benign"
+				value={stats.benign}
+				icon="check-circle"
+				color={getThreatColor('benign')}
+			/>
+			<MetricCard
+				label="Needs Investigation"
+				value={stats.needsInvestigation}
+				icon="magnifying-glass"
+				color="var(--color-medium)"
+			/>
 		</div>
 
-		{#if isLoading}
-			<div class="flex items-center justify-center py-12">
-				<Icon src="arrow-path" class="w-8 h-8 text-[var(--accent-primary)] animate-spin" />
+		<div class="rounded-2xl border border-[var(--border-color)] bg-[var(--panel)] p-6 shadow-[var(--shadow-soft)]">
+			<h2 class="text-lg font-semibold text-[var(--text-primary)]">Recent Detections</h2>
+			<p class="mt-1 text-sm text-[var(--text-secondary)]">
+				Showing detections from the hybrid pipeline.
+			</p>
+			<div class="mt-4">
+				<DataTable data={detections} {columns} />
 			</div>
-		{:else if detections.length === 0}
-			<div class="text-center py-12">
-				<Icon src="inbox" class="w-12 h-12 text-[var(--text-secondary)] mx-auto mb-3" />
-				<p class="text-[var(--text-secondary)]">No detections found</p>
-				<p class="text-sm text-[var(--text-secondary)] mt-1">
-					Start analyzing traffic to see detection results
-				</p>
-			</div>
-		{:else}
-			<DataTable
-				data={detections}
-				{columns}
-				bind:currentPage
-				rowsPerPage={10}
-				totalRows={totalDetections}
-				onRowClick={(detection) => console.log('View details:', detection)}
-			/>
-		{/if}
-	</div>
-
-	<!-- Detection Explanation (if selected) -->
-	<!-- This would show detailed explanation when a row is clicked -->
+		</div>
+	{/if}
 </div>

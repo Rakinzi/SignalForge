@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-test('home page has expected h1', async ({ page }) => {
-	await page.goto('/');
-	await expect(page.locator('h1')).toBeVisible();
+test('login page is reachable', async ({ page }) => {
+	await page.goto('/login');
+	await expect(page.getByRole('heading', { name: 'Sign In' })).toBeVisible();
 });

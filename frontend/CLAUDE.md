@@ -38,23 +38,17 @@ bun run test               # Run all tests
 
 ### API Client Pattern (Critical)
 
-The API client in `src/lib/api/client.ts` implements **automatic mock data fallback**:
+The API client in `src/lib/api/client.ts` is **strictly backend-driven**:
 
-1. **Health Check System**: Checks `/health` endpoint every 30 seconds
-2. **Graceful Degradation**: Returns mock data if API unavailable
-3. **JWT Authentication**: Automatic token refresh via `src/lib/api/auth.ts`
-4. **Response Mapping**: Backend returns `{items: [...]}`, frontend expects arrays
+1. **JWT Authentication**: Automatic token refresh via `src/lib/api/auth.ts`
+2. **Response Mapping**: Backend returns `{items: [...]}`, frontend expects arrays
+3. **Explicit Failures**: API errors raise `ApiError` and must be surfaced in page UI
 
 When adding new API endpoints:
 ```typescript
 // Pattern to follow
 export async function newEndpoint(): Promise<DataType[]> {
-    const { data, usedMock } = await apiCall<BackendResponse>('/endpoint');
-
-    if (usedMock || !data) {
-        return generateMockData(); // Always provide mock fallback
-    }
-
+    const data = await apiCall<BackendResponse>('/endpoint');
     return data.items; // Extract items array from backend response
 }
 ```
@@ -210,7 +204,7 @@ VITE_API_PASSWORD=viewer       # Default auth (development only)
 
 ### Adding a New API Endpoint
 1. Add TypeScript interface to `src/lib/types.ts`
-2. Add function to `src/lib/api/client.ts` with mock fallback
+2. Add function to `src/lib/api/client.ts` with strict API mapping
 3. Map backend response format (extract `items` array)
 4. Add authentication if needed (default: true)
 

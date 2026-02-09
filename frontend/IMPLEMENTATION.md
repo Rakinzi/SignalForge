@@ -16,10 +16,10 @@
 - ✅ Custom CSS utilities (cyber-glow, cyber-glow-text)
 
 ### 3. API Client (`src/lib/api/client.ts`)
-- ✅ Automatic health checking
-- ✅ Mock data fallback when API unavailable
+- ✅ Strict backend-only data policy (no mock/dummy runtime data)
 - ✅ Type-safe API calls
 - ✅ SSE connection management for real-time alerts
+- ✅ Explicit API error propagation (`ApiError`)
 - ✅ All required endpoints implemented:
   - GET /health
   - GET /metrics
@@ -150,19 +150,10 @@
 - Single binary
 - Required by spec
 
-### Why Mock Data?
-- Graceful degradation
-- Development without backend
-- Demo-ready screenshots
-- Testing resilience
-
-## 📊 Mock Data Features
-
-- **Flows**: 50 generated flows with realistic patterns
-- **Alerts**: 20 alerts with varied severities/statuses
-- **Metrics**: Realistic performance numbers
-- **Entities**: Sample IP and service baselines
-- **Reports**: Production-like evaluation metrics
+### Why Strict API Data?
+- Preserves research validity and reproducibility
+- Prevents fabricated values from appearing in evaluation output
+- Makes failures explicit for debugging and auditability
 
 ## 🚀 Performance
 
@@ -187,11 +178,10 @@
 
 ## 🎯 Next Steps (Optional Enhancements)
 
-### When Backend is Ready:
-1. Replace mock data calls with real API
-2. Test SSE reconnection logic
-3. Validate data contracts
-4. Load test with high flow volumes
+### Next Validation Steps:
+1. Test SSE reconnection logic
+2. Validate data contracts
+3. Load test with high flow volumes
 
 ### UI Enhancements:
 1. Add data visualization charts (if time permits)
@@ -206,14 +196,13 @@
 
 ## 🐛 Known Limitations
 
-1. **Mock Data**: Currently using generated data
-2. **No Auth**: Authentication left to backend
-3. **Read-Only Settings**: Cannot modify config from UI
-4. **Limited Charts**: No visualization libraries added
+1. **No Auth UI**: Authentication handled by backend/API token flow
+2. **Read-Only Settings**: Cannot modify config from UI
+3. **Limited Charts**: No advanced visualization libraries added
 
 ## 🎬 Demo Ready
 
-The application is fully functional with mock data and ready for:
+The application is backend-integrated and ready for:
 - Screenshots via Playwright MCP
 - Documentation embedding
 - Demo presentations
@@ -251,4 +240,4 @@ Total: ~2,800 lines of new/modified code
 ## 🎉 Status: COMPLETE ✅
 
 All required pages, features, and documentation are implemented and working.
-The application is running on http://localhost:5173 and ready for integration with the backend.
+The application is running on http://localhost:5173 with strict backend-driven data.

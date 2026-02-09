@@ -2,7 +2,7 @@
 	import { authStore } from '$lib/stores/auth';
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
-	import { Icon } from 'svelte-hero-icons';
+	import Icon from '$lib/components/Icon.svelte';
 
 	let username = $state('');
 	let email = $state('');

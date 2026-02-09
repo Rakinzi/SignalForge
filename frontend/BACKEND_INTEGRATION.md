@@ -67,12 +67,10 @@ VITE_API_PASSWORD=viewer
 | `/flows/{id}` | GET | Yes | Flow details | ✅ Integrated |
 | `/alerts` | GET | Yes | Alerts list | ✅ Integrated |
 | `/alerts/{id}/ack` | POST | Yes | Acknowledge alerts | ✅ Integrated |
-| `/metrics` | GET | Yes | Overview metrics | ✅ Integrated* |
-| `/reports` | GET | Yes | Reports page | ✅ Integrated* |
-| `/config` | GET | Yes | Settings page | ✅ Integrated* |
+| `/metrics` | GET | Yes | Overview metrics | ✅ Integrated |
+| `/reports` | GET | Yes | Reports page | ✅ Integrated |
+| `/config` | GET | Yes | Settings page | ✅ Integrated |
 | `/stream/alerts` | GET (SSE) | Yes | Real-time alerts | ✅ Integrated |
-
-\* *Some fields use mock data as backend schema differs slightly*
 
 ### Response Format Mapping
 
@@ -173,9 +171,9 @@ Browser
 
 ## 🐛 Troubleshooting
 
-### "API unavailable, using mock data"
+### "API request failed"
 
-**Cause**: Cannot reach backend at `http://localhost:8000`
+**Cause**: Cannot reach backend at `http://localhost:8000`, authentication failure, or non-2xx API response
 
 **Solutions**:
 1. Check if API service is running: `curl http://localhost:8000/health`
@@ -212,20 +210,9 @@ Browser
 3. Check if detector is processing flows
 4. Verify PostgreSQL has data: `docker-compose exec postgres psql -U signalforge -c "SELECT COUNT(*) FROM flows;"`
 
-## 📊 Mock Data Fallback
+## 📊 Data Policy
 
-The frontend gracefully degrades to mock data when:
-
-1. API is unreachable
-2. Authentication fails
-3. Network errors occur
-4. Response parsing fails
-
-This allows:
-- ✅ Development without backend
-- ✅ Screenshots for documentation
-- ✅ Demos and presentations
-- ✅ Resilient UX
+The frontend does not generate or display mock/dummy operational data. All dashboard values must come from backend API responses. When data is unavailable, the UI renders explicit error or empty-state messages.
 
 ## 🔧 Environment Variables
 
@@ -299,10 +286,10 @@ export async function getEntities() {
 - [x] Authentication system implemented
 - [x] Token management with auto-refresh
 - [x] Response format adapters
-- [x] Error handling and fallbacks
+- [x] Error handling with explicit API failures
 - [x] SSE with authentication
 - [x] Environment configuration
-- [x] Mock data for development
+- [x] No mock/dummy operational data
 - [x] CORS compatibility
 - [x] Docker deployment ready
 

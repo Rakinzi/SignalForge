@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/stores';
-	import { Icon } from 'svelte-hero-icons';
+	import Icon from '$lib/components/Icon.svelte';
+	import { currentUser } from '$lib/stores/auth';
 
 	interface Props {
 		mobileMenuOpen?: boolean;
@@ -13,6 +14,7 @@
 		{ label: 'Overview', href: '/', icon: 'squares-2x2' },
 		{ label: 'Flows', href: '/flows', icon: 'arrows-right-left' },
 		{ label: 'Detection', href: '/detection', icon: 'shield-check' },
+		{ label: 'Lab', href: '/lab', icon: 'beaker' },
 		{ label: 'Alerts', href: '/alerts', icon: 'exclamation-triangle' },
 		{ label: 'Entities', href: '/entities', icon: 'cube' },
 		{ label: 'Evaluation', href: '/evaluation', icon: 'chart-pie' },
@@ -21,6 +23,14 @@
 	];
 
 	let currentPath = $derived($page.url.pathname);
+	let role = $derived($currentUser?.role ?? 'viewer');
+	function canView(href: string): boolean {
+		if (href === '/settings') return role === 'admin';
+		if (href === '/lab') return role === 'admin' || role === 'analyst';
+		return true;
+	}
+
+	let visibleNavItems = $derived(navItems.filter((item) => canView(item.href)));
 
 	function handleLinkClick() {
 		// Close mobile menu when link is clicked
@@ -40,12 +50,14 @@
 <!-- Sidebar -->
 <aside
 	class="fixed left-0 top-16 h-[calc(100vh-4rem)] w-64 bg-[var(--bg-secondary)] border-r border-[var(--border-color)] flex flex-col z-40 transition-transform duration-300 ease-in-out
-	{mobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}"
+	{mobileMenuOpen
+		? 'translate-x-0 visible pointer-events-auto'
+		: '-translate-x-full invisible pointer-events-none lg:translate-x-0 lg:visible lg:pointer-events-auto'}"
 >
 	<!-- Navigation -->
 	<nav class="flex-1 overflow-y-auto p-4">
 		<ul class="space-y-2">
-			{#each navItems as item (item.href)}
+			{#each visibleNavItems as item (item.href)}
 				<li>
 					<a
 						href={item.href}

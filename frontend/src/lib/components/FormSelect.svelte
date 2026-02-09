@@ -3,16 +3,19 @@
 		label: string;
 		value: string;
 		options: Array<{ value: string; label: string }>;
+		id?: string;
 	}
 
-	let { label, value = $bindable(''), options }: Props = $props();
+	let { label, value = $bindable(''), options, id }: Props = $props();
+	let selectId = $derived(id ?? `select-${label.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`);
 </script>
 
 <div>
-	<label class="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">
+	<label for={selectId} class="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">
 		{label}
 	</label>
 	<select
+		id={selectId}
 		bind:value
 		class="w-full px-3 py-2 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-lg
 		       text-sm text-[var(--text-primary)] focus:outline-none focus:ring-2

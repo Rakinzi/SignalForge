@@ -1,9 +1,8 @@
 <script lang="ts">
-	import { Icon } from 'svelte-hero-icons';
-	import { goto } from '$app/navigation';
-	import { onMount } from 'svelte';
-	import { clearToken } from '$lib/api/auth';
-	import { authStore, currentUser } from '$lib/stores/auth';
+import Icon from '$lib/components/Icon.svelte';
+import { goto } from '$app/navigation';
+import { onMount } from 'svelte';
+import { authStore, currentUser } from '$lib/stores/auth';
 
 	interface Props {
 		onMenuToggle?: () => void;

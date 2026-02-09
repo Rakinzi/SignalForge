@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Icon } from 'svelte-hero-icons';
+	import Icon from '$lib/components/Icon.svelte';
 
 	interface Props {
 		onApply: () => void;

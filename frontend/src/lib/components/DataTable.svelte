@@ -1,5 +1,5 @@
 <script lang="ts" generics="T">
-	import { Icon } from 'svelte-hero-icons';
+	import Icon from '$lib/components/Icon.svelte';
 
 	interface Props {
 		data: T[];
@@ -141,6 +141,7 @@
 				<button
 					onclick={previousPage}
 					disabled={currentPage === 1}
+					aria-label="Go to previous page"
 					class="px-3 py-2 rounded-lg border border-[var(--border-color)] text-sm font-medium
 					       text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] disabled:opacity-50
 					       disabled:cursor-not-allowed transition-colors"
@@ -176,6 +177,7 @@
 				<button
 					onclick={nextPage}
 					disabled={currentPage === totalPages}
+					aria-label="Go to next page"
 					class="px-3 py-2 rounded-lg border border-[var(--border-color)] text-sm font-medium
 					       text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] disabled:opacity-50
 					       disabled:cursor-not-allowed transition-colors"

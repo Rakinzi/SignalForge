@@ -3,11 +3,14 @@ import os
 import time
 import asyncio
 import uuid
+import csv
+import io
 from datetime import datetime, timedelta, timezone
 from typing import Dict, Optional, Set, AsyncGenerator, Mapping, Any
 
 from fastapi import Depends, FastAPI, Form, HTTPException, Request, status
-from fastapi.responses import StreamingResponse
+from fastapi.encoders import jsonable_encoder
+from fastapi.responses import StreamingResponse, PlainTextResponse
 from fastapi.security import OAuth2PasswordRequestForm
 from jose import jwt
 from sqlalchemy import (
@@ -130,6 +133,19 @@ evaluations = Table(
     Column("alert_count", Integer, nullable=False),
     Column("high_severity", Integer, nullable=False),
     Column("notes", Text, nullable=False),
+)
+
+detection_jobs = Table(
+    "detection_jobs",
+    metadata,
+    Column("id", String, primary_key=True),
+    Column("created_at", DateTime, nullable=False),
+    Column("actor", String, nullable=False),
+    Column("job_type", String, nullable=False),
+    Column("status", String, nullable=False),
+    Column("input_meta", Text, nullable=False),
+    Column("result_json", Text, nullable=True),
+    Column("error", Text, nullable=True),
 )
 
 users = Table(
@@ -633,6 +649,84 @@ def list_audit_logs(
     }
 
 
+@app.get("/audit/export")
+def export_audit_logs(
+    request: Request,
+    format: str = "jsonl",
+    limit: int = 5000,
+    event: Optional[str] = None,
+    actor: Optional[str] = None,
+    user: Dict[str, str] = Depends(require_scope(SCOPE_AUDIT_READ)),
+):
+    filters = []
+    if event:
+        filters.append(audit_logs.c.event == event)
+    if actor:
+        filters.append(audit_logs.c.actor == actor)
+
+    with engine.begin() as conn:
+        rows = (
+            conn.execute(
+                select(audit_logs)
+                .where(*filters)
+                .order_by(audit_logs.c.occurred_at.desc())
+                .limit(limit)
+            )
+            .mappings()
+            .all()
+        )
+
+    write_audit(
+        event="audit_export",
+        actor=user["username"],
+        metadata={"format": format, "rows": len(rows)},
+        request_id=get_request_id(request),
+    )
+
+    if format == "csv":
+        buffer = io.StringIO()
+        writer = csv.DictWriter(
+            buffer,
+            fieldnames=["id", "event", "actor", "occurred_at", "metadata"],
+        )
+        writer.writeheader()
+        for row in rows:
+            writer.writerow(
+                {
+                    "id": row["id"],
+                    "event": row["event"],
+                    "actor": row["actor"],
+                    "occurred_at": row["occurred_at"].isoformat(),
+                    "metadata": row["metadata"],
+                }
+            )
+        return PlainTextResponse(
+            content=buffer.getvalue(),
+            media_type="text/csv",
+            headers={"Content-Disposition": 'attachment; filename="audit_logs.csv"'},
+        )
+
+    # Default JSONL for offline analysis pipelines.
+    lines = []
+    for row in rows:
+        lines.append(
+            json.dumps(
+                {
+                    "id": row["id"],
+                    "event": row["event"],
+                    "actor": row["actor"],
+                    "occurred_at": row["occurred_at"].isoformat(),
+                    "metadata": json.loads(row["metadata"]) if row["metadata"] else {},
+                }
+            )
+        )
+    return PlainTextResponse(
+        content="\n".join(lines) + ("\n" if lines else ""),
+        media_type="application/x-ndjson",
+        headers={"Content-Disposition": 'attachment; filename="audit_logs.jsonl"'},
+    )
+
+
 @app.get("/metrics")
 def metrics(request: Request, user: Dict[str, str] = Depends(require_scope(SCOPE_METRICS_READ))):
     now = datetime.now(timezone.utc)
@@ -646,6 +740,16 @@ def metrics(request: Request, user: Dict[str, str] = Depends(require_scope(SCOPE
             .select_from(flows)
             .where(flows.c.end_time >= now - timedelta(seconds=window_seconds))
         ).scalar_one()
+        recent_bytes = conn.execute(
+            select(func.coalesce(func.sum(flows.c.byte_count), 0))
+            .select_from(flows)
+            .where(flows.c.end_time >= now - timedelta(seconds=window_seconds))
+        ).scalar_one()
+        recent_packets = conn.execute(
+            select(func.coalesce(func.sum(flows.c.packet_count), 0))
+            .select_from(flows)
+            .where(flows.c.end_time >= now - timedelta(seconds=window_seconds))
+        ).scalar_one()
         last_eval = conn.execute(
             select(evaluations).order_by(evaluations.c.created_at.desc()).limit(1)
         ).mappings().first()
@@ -655,12 +759,16 @@ def metrics(request: Request, user: Dict[str, str] = Depends(require_scope(SCOPE
         metadata={"role": user["role"]},
         request_id=get_request_id(request),
     )
-    ingest_rate = recent_flows / max(window_seconds, 1)
+    # True ingest is traffic volume rate (bytes/s), distinct from flow throughput.
+    ingest_rate = float(recent_bytes) / max(window_seconds, 1)
+    flows_per_second = recent_flows / max(window_seconds, 1)
+    packets_per_second = float(recent_packets) / max(window_seconds, 1)
     uptime_seconds = int(time.time() - START_TIME)
     return {
         "status": "healthy",
         "ingest_rate": ingest_rate,
-        "flows_per_second": ingest_rate,
+        "flows_per_second": flows_per_second,
+        "packets_per_second": packets_per_second,
         "alerts_count": open_alerts,
         "latency_ms": 0.0,
         "uptime_seconds": uptime_seconds,
@@ -680,7 +788,19 @@ def reports(request: Request, user: Dict[str, str] = Depends(require_scope(SCOPE
         latest_eval = conn.execute(
             select(evaluations).order_by(evaluations.c.created_at.desc()).limit(1)
         ).mappings().first()
+        latest_job = conn.execute(
+            select(detection_jobs)
+            .where(
+                detection_jobs.c.job_type == "analyze",
+                detection_jobs.c.status == "completed",
+                detection_jobs.c.result_json.isnot(None),
+            )
+            .order_by(detection_jobs.c.created_at.desc())
+            .limit(1)
+        ).mappings().first()
     metrics_payload = build_evaluation_metrics(dict(latest_eval) if latest_eval else None)
+    if metrics_payload is None and latest_job:
+        metrics_payload = build_evaluation_metrics_from_job(dict(latest_job))
     write_audit(
         event="reports_access",
         actor=user["username"],
@@ -744,7 +864,7 @@ def stream_alerts(request: Request, token: Optional[str] = None, authorization: 
                 ).mappings().first()
             if row and row.get("id") != last_sent:
                 last_sent = row.get("id")
-                payload = json.dumps({"event": "alert", "data": row})
+                payload = json.dumps({"event": "alert", "data": jsonable_encoder(dict(row))})
                 yield f"data: {payload}\n\n".encode("utf-8")
             else:
                 yield b": keep-alive\n\n"
@@ -795,37 +915,97 @@ def parse_baseline_key(key: str) -> tuple[str, str]:
     return key, "ip"
 
 
-def build_evaluation_metrics(latest_eval: Optional[Mapping[str, Any]]) -> dict:
+def build_evaluation_metrics(latest_eval: Optional[Mapping[str, Any]]) -> Optional[dict]:
+    """
+    Return measured evaluation metrics only.
+
+    Metrics are extracted from `evaluations.notes` when it contains a JSON payload
+    with confusion-matrix counts and derived scores. No synthetic values are generated.
+    """
     if not latest_eval:
-        return {
-            "true_positives": 0,
-            "false_positives": 0,
-            "true_negatives": 0,
-            "false_negatives": 0,
-            "precision": 0.0,
-            "recall": 0.0,
-            "f1_score": 0.0,
-            "accuracy": 0.0,
-        }
-    alerts = int(latest_eval.get("alert_count", 0))
-    flows = int(latest_eval.get("flow_count", 0))
-    tp = alerts
-    fp = max(int(alerts * 0.05), 0)
-    fn = max(int(alerts * 0.02), 0)
-    tn = max(flows - tp - fp - fn, 0)
-    precision = tp / max(tp + fp, 1)
-    recall = tp / max(tp + fn, 1)
-    f1 = (2 * precision * recall) / max(precision + recall, 1e-9)
-    accuracy = (tp + tn) / max(tp + tn + fp + fn, 1)
+        return None
+
+    notes = latest_eval.get("notes")
+    if not notes:
+        return None
+
+    try:
+        parsed_notes = json.loads(notes) if isinstance(notes, str) else notes
+    except Exception:
+        return None
+
+    confusion = parsed_notes.get("confusion_matrix")
+    metrics = parsed_notes.get("metrics")
+    if not isinstance(confusion, dict) or not isinstance(metrics, dict):
+        return None
+
+    required_confusion = [
+        "true_positives",
+        "false_positives",
+        "true_negatives",
+        "false_negatives",
+    ]
+    required_metrics = ["precision", "recall", "f1_score", "accuracy"]
+
+    if not all(key in confusion for key in required_confusion):
+        return None
+    if not all(key in metrics for key in required_metrics):
+        return None
+
     return {
-        "true_positives": tp,
-        "false_positives": fp,
-        "true_negatives": tn,
-        "false_negatives": fn,
-        "precision": precision,
-        "recall": recall,
-        "f1_score": f1,
-        "accuracy": accuracy,
+        "true_positives": int(confusion["true_positives"]),
+        "false_positives": int(confusion["false_positives"]),
+        "true_negatives": int(confusion["true_negatives"]),
+        "false_negatives": int(confusion["false_negatives"]),
+        "precision": float(metrics["precision"]),
+        "recall": float(metrics["recall"]),
+        "f1_score": float(metrics["f1_score"]),
+        "accuracy": float(metrics["accuracy"]),
+    }
+
+
+def build_evaluation_metrics_from_job(job_row: Mapping[str, Any]) -> Optional[dict]:
+    """
+    Extract measured evaluation metrics from a persisted detection job result.
+    """
+    result_json = job_row.get("result_json")
+    if not result_json:
+        return None
+    try:
+        parsed = json.loads(result_json) if isinstance(result_json, str) else result_json
+    except Exception:
+        return None
+
+    evaluation = parsed.get("evaluation") if isinstance(parsed, dict) else None
+    if not isinstance(evaluation, dict):
+        return None
+
+    confusion = evaluation.get("confusion_matrix")
+    metrics = evaluation.get("metrics")
+    if not isinstance(confusion, dict) or not isinstance(metrics, dict):
+        return None
+
+    required_confusion = [
+        "true_positives",
+        "false_positives",
+        "true_negatives",
+        "false_negatives",
+    ]
+    required_metrics = ["precision", "recall", "f1_score", "accuracy"]
+    if not all(k in confusion for k in required_confusion):
+        return None
+    if not all(k in metrics for k in required_metrics):
+        return None
+
+    return {
+        "true_positives": int(confusion["true_positives"]),
+        "false_positives": int(confusion["false_positives"]),
+        "true_negatives": int(confusion["true_negatives"]),
+        "false_negatives": int(confusion["false_negatives"]),
+        "precision": float(metrics["precision"]),
+        "recall": float(metrics["recall"]),
+        "f1_score": float(metrics["f1_score"]),
+        "accuracy": float(metrics["accuracy"]),
     }
 
 

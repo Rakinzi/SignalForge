@@ -3,7 +3,7 @@
 	import favicon from '$lib/assets/favicon.svg';
 	import Sidebar from '$lib/components/Sidebar.svelte';
 	import Navbar from '$lib/components/Navbar.svelte';
-	import { authStore, isAuthenticated } from '$lib/stores/auth';
+	import { authStore } from '$lib/stores/auth';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import { onMount } from 'svelte';

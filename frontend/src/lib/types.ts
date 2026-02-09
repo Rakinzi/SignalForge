@@ -43,6 +43,10 @@ export interface HealthMetrics {
 	alerts_count: number;
 	latency_ms: number;
 	uptime_seconds: number;
+	packets_per_second?: number;
+	flows_total?: number;
+	alerts_total?: number;
+	alerts_open?: number;
 }
 
 export interface EntityBaseline {
@@ -72,4 +76,55 @@ export interface SystemConfig {
 	baseline_window_hours: number;
 	alert_threshold: number;
 	capture_interface: string;
+}
+
+export interface HybridDecisionBreakdown {
+	flow_id?: string;
+	rules_triggered?: string[] | string;
+	anomaly_score?: number;
+	explanation?: string;
+	[key: string]: unknown;
+}
+
+export interface LabUploadResponse {
+	status: string;
+	filename: string;
+	file_path: string;
+	size_bytes: number;
+}
+
+export interface LabAnalyzeResult {
+	job_id: string;
+	status: string;
+	flows_processed?: number;
+	decisions?: HybridDecisionBreakdown[];
+	evaluation?: Record<string, unknown>;
+}
+
+export interface LabTrainResult {
+	job_id: string;
+	status: string;
+	baseline_path: string;
+	profile_summary: Record<string, unknown>;
+}
+
+export interface LabDatasetParseResult {
+	job_id: string;
+	dataset_type: string;
+	flows_parsed: number;
+	total_ground_truth: number;
+	sample_flows: Array<Record<string, unknown>>;
+	malicious_count: number;
+	benign_count: number;
+}
+
+export interface LabJob {
+	job_id: string;
+	created_at: string;
+	actor: string;
+	job_type: string;
+	status: string;
+	input: Record<string, unknown>;
+	result: Record<string, unknown> | null;
+	error?: string | null;
 }

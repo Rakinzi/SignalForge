@@ -6,10 +6,11 @@
 	import FilterBar from '$lib/components/FilterBar.svelte';
 	import FormInput from '$lib/components/FormInput.svelte';
 	import FormSelect from '$lib/components/FormSelect.svelte';
-	import { Icon } from 'svelte-hero-icons';
+	import Icon from '$lib/components/Icon.svelte';
 
 	let flows = $state<FlowSummary[]>([]);
 	let loading = $state(true);
+	let error = $state<string | null>(null);
 
 	// Filters
 	let srcIp = $state('');
@@ -18,11 +19,18 @@
 
 	async function loadFlows() {
 		loading = true;
-		const params: any = {};
-		if (srcIp) params.src_ip = srcIp;
-		if (dstIp) params.dst_ip = dstIp;
-		flows = await getFlows(params);
-		loading = false;
+		error = null;
+		try {
+			const params: any = {};
+			if (srcIp) params.src_ip = srcIp;
+			if (dstIp) params.dst_ip = dstIp;
+			flows = await getFlows(params);
+		} catch (err) {
+			flows = [];
+			error = err instanceof Error ? err.message : 'Failed to load flows';
+		} finally {
+			loading = false;
+		}
 	}
 
 	function clearFilters() {
@@ -135,3 +143,9 @@
 
 <!-- Table -->
 <DataTable data={filteredFlows} {columns} {loading} emptyMessage="No flows found" />
+
+{#if error}
+	<div class="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+		{error}
+	</div>
+{/if}

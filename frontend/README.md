@@ -16,7 +16,7 @@ Real-time network anomaly detection dashboard built with SvelteKit, Tailwind CSS
 - **Explainable Detection**: Every alert shows WHY it was triggered
 - **Cyber-themed UI**: Dark/Light mode with neon accents
 - **Responsive Design**: Mobile-friendly interface
-- **Mock Data Fallback**: Graceful degradation when API is unavailable
+- **Strict Backend Integration**: UI renders only API-provided data
 
 ## 📦 Installation
 
@@ -64,7 +64,7 @@ frontend/
 ├── src/
 │   ├── lib/
 │   │   ├── api/
-│   │   │   └── client.ts          # API client with mock fallback
+│   │   │   └── client.ts          # API client (no mock fallback)
 │   │   ├── components/
 │   │   │   └── Navigation.svelte   # Main navigation
 │   │   └── types.ts                # TypeScript types
@@ -134,7 +134,7 @@ Custom CSS variables are defined in `src/routes/layout.css`.
 
 ## 🔌 API Integration
 
-The frontend automatically detects API availability and falls back to mock data when offline.
+The frontend consumes backend API data directly. When the API is unavailable, pages show explicit error states.
 
 ### API Endpoints
 

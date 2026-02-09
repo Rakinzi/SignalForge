@@ -1,6 +1,9 @@
 // Authentication module for API access
 
+import { browser } from '$app/environment';
+
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
+const SESSION_TOKEN_KEY = 'signalforge_auth_token';
 
 // Default credentials (development only)
 const DEFAULT_USERNAME = import.meta.env.VITE_API_USERNAME || 'viewer';
@@ -10,6 +13,14 @@ let accessToken: string | null = null;
 let tokenExpiry: number = 0;
 
 export async function getAccessToken(): Promise<string | null> {
+	// Prefer active session token from auth store/localStorage.
+	if (browser) {
+		const sessionToken = localStorage.getItem(SESSION_TOKEN_KEY);
+		if (sessionToken) {
+			return sessionToken;
+		}
+	}
+
 	// Return cached token if still valid
 	if (accessToken && Date.now() < tokenExpiry) {
 		return accessToken;

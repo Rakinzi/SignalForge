@@ -1,13 +1,16 @@
 <script lang="ts">
+	import Icon from '$lib/components/Icon.svelte';
+
 	interface Props {
 		label: string;
 		value: string | number;
 		unit?: string;
 		icon?: string;
 		trend?: { value: number; positive: boolean };
+		color?: string;
 	}
 
-	let { label, value, unit = '', icon, trend }: Props = $props();
+	let { label, value, unit = '', icon, trend, color }: Props = $props();
 </script>
 
 <div class="bg-[var(--bg-secondary)] rounded-lg border border-[var(--border-color)] p-6
@@ -16,7 +19,7 @@
 		<div class="flex-1">
 			<p class="text-sm font-medium text-[var(--text-secondary)] mb-2">{label}</p>
 			<div class="flex items-baseline gap-2">
-				<p class="text-3xl font-semibold text-[var(--text-primary)]">
+				<p class="text-3xl font-semibold text-[var(--text-primary)]" style={color ? `color: ${color}` : ''}>
 					{typeof value === 'number' ? value.toLocaleString() : value}
 				</p>
 				{#if unit}
@@ -34,7 +37,7 @@
 		</div>
 		{#if icon}
 			<div class="w-12 h-12 rounded-lg bg-[var(--bg-tertiary)] flex items-center justify-center">
-				<span class="text-2xl">{icon}</span>
+				<Icon src={icon} class="w-6 h-6 text-[var(--text-secondary)]" />
 			</div>
 		{/if}
 	</div>

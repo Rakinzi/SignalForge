@@ -6,10 +6,11 @@
 	import FilterBar from '$lib/components/FilterBar.svelte';
 	import FormInput from '$lib/components/FormInput.svelte';
 	import FormSelect from '$lib/components/FormSelect.svelte';
-	import { Icon } from 'svelte-hero-icons';
+	import Icon from '$lib/components/Icon.svelte';
 
 	let entities = $state<EntityBaseline[]>([]);
 	let loading = $state(true);
+	let error = $state<string | null>(null);
 
 	// Filters
 	let typeFilter = $state('all');
@@ -17,8 +18,15 @@
 
 	async function loadEntities() {
 		loading = true;
-		entities = await getEntities();
-		loading = false;
+		error = null;
+		try {
+			entities = await getEntities();
+		} catch (err) {
+			entities = [];
+			error = err instanceof Error ? err.message : 'Failed to load entities';
+		} finally {
+			loading = false;
+		}
 	}
 
 	function clearFilters() {
@@ -152,3 +160,9 @@
 
 <!-- Table -->
 <DataTable data={filteredEntities} {columns} {loading} emptyMessage="No entities found" />
+
+{#if error}
+	<div class="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+		{error}
+	</div>
+{/if}

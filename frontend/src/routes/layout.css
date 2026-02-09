@@ -1,103 +1,98 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
 @import 'tailwindcss';
 @plugin '@tailwindcss/forms';
 @plugin '@tailwindcss/typography';
 
-/* Cyber Security Theme - Dark/Light Mode Support */
 @theme {
-	/* Light Mode Colors */
-	--color-cyber-50: #e6f0ff;
-	--color-cyber-100: #b3d9ff;
-	--color-cyber-200: #80c2ff;
-	--color-cyber-300: #4dabff;
-	--color-cyber-400: #1a94ff;
-	--color-cyber-500: #007bff;
-	--color-cyber-600: #0062cc;
-	--color-cyber-700: #004999;
-	--color-cyber-800: #003166;
-	--color-cyber-900: #001833;
-
-	/* Neon Accent Colors */
-	--color-neon-cyan: #00ffff;
-	--color-neon-magenta: #ff00ff;
-	--color-neon-green: #10b981;
-	--color-neon-red: #ff0040;
-	--color-neon-yellow: #ffff00;
-	--color-neon-purple: #9d00ff;
-
-	/* Alert/Status Colors */
-	--color-critical: #ff0040;
-	--color-high: #ff6600;
-	--color-medium: #ffaa00;
-	--color-low: #ffdd00;
-	--color-info: #00c3ff;
-	--color-success: #10b981;
-
-	/* Dark Mode Base */
-	--color-dark-bg: #0a0e1a;
-	--color-dark-surface: #141827;
-	--color-dark-border: #1e2533;
-	--color-dark-text: #e2e8f0;
-	--color-dark-text-muted: #94a3b8;
+	--color-critical: #c53030;
+	--color-high: #dd6b20;
+	--color-medium: #b7791f;
+	--color-low: #2b6cb0;
+	--color-info: #0ea5e9;
+	--color-success: #059669;
 }
 
-/* Base Styles */
 :root {
-	/* Light mode defaults */
-	--bg-primary: white;
-	--bg-secondary: #f8fafc;
-	--bg-tertiary: #f1f5f9;
-	--text-primary: #0f172a;
-	--text-secondary: #475569;
-	--text-tertiary: #64748b;
-	--border-color: #e2e8f0;
-	--border-color-hover: #cbd5e1;
-
-	/* Cyber accent */
-	--accent-primary: var(--color-cyber-600);
-	--accent-secondary: var(--color-neon-cyan);
-	--accent-glow: rgba(0, 123, 255, 0.3);
+	--bg-primary: #f4f4f0;
+	--bg-secondary: #fdfcf7;
+	--bg-tertiary: #ece9df;
+	--panel: rgba(255, 255, 255, 0.72);
+	--text-primary: #1f2937;
+	--text-secondary: #4b5563;
+	--text-tertiary: #6b7280;
+	--border-color: #d7d2c4;
+	--border-color-hover: #b8ad97;
+	--border-primary: var(--border-color);
+	--card-bg: var(--panel);
+	--card-border: var(--border-color);
+	--accent-primary: #0f766e;
+	--accent-secondary: #f59e0b;
+	--accent-glow: rgba(15, 118, 110, 0.22);
+	--shadow-soft: 0 10px 35px rgba(15, 23, 42, 0.08);
+	--grid-pattern:
+		linear-gradient(to right, rgba(148, 163, 184, 0.08) 1px, transparent 1px),
+		linear-gradient(to bottom, rgba(148, 163, 184, 0.08) 1px, transparent 1px);
 }
 
-/* Dark Mode */
 @media (prefers-color-scheme: dark) {
 	:root {
-		--bg-primary: var(--color-dark-bg);
-		--bg-secondary: var(--color-dark-surface);
-		--bg-tertiary: var(--color-dark-border);
-		--text-primary: var(--color-dark-text);
-		--text-secondary: var(--color-dark-text-muted);
-		--text-tertiary: #64748b;
-		--border-color: #334155;
-		--border-color-hover: #475569;
-
-		--accent-primary: var(--color-neon-cyan);
-		--accent-secondary: var(--color-neon-magenta);
-		--accent-glow: rgba(0, 255, 255, 0.2);
+		--bg-primary: #10171a;
+		--bg-secondary: #162126;
+		--bg-tertiary: #1e2b30;
+		--panel: rgba(22, 33, 38, 0.88);
+		--text-primary: #f3f4f6;
+		--text-secondary: #c3c8cd;
+		--text-tertiary: #8b97a1;
+		--border-color: #33454f;
+		--border-color-hover: #4e6671;
+		--border-primary: var(--border-color);
+		--card-bg: var(--panel);
+		--card-border: var(--border-color);
+		--accent-primary: #2dd4bf;
+		--accent-secondary: #fbbf24;
+		--accent-glow: rgba(45, 212, 191, 0.2);
+		--shadow-soft: 0 12px 36px rgba(2, 6, 23, 0.35);
+		--grid-pattern:
+			linear-gradient(to right, rgba(148, 163, 184, 0.06) 1px, transparent 1px),
+			linear-gradient(to bottom, rgba(148, 163, 184, 0.06) 1px, transparent 1px);
 	}
 }
 
-/* Manual dark mode toggle */
 [data-theme='dark'] {
-	--bg-primary: var(--color-dark-bg);
-	--bg-secondary: var(--color-dark-surface);
-	--bg-tertiary: var(--color-dark-border);
-	--text-primary: var(--color-dark-text);
-	--text-secondary: var(--color-dark-text-muted);
-	--text-tertiary: #64748b;
-	--border-color: #334155;
-	--border-color-hover: #475569;
-
-	--accent-primary: var(--color-neon-cyan);
-	--accent-secondary: var(--color-neon-magenta);
-	--accent-glow: rgba(0, 255, 255, 0.2);
+	--bg-primary: #10171a;
+	--bg-secondary: #162126;
+	--bg-tertiary: #1e2b30;
+	--panel: rgba(22, 33, 38, 0.88);
+	--text-primary: #f3f4f6;
+	--text-secondary: #c3c8cd;
+	--text-tertiary: #8b97a1;
+	--border-color: #33454f;
+	--border-color-hover: #4e6671;
+	--border-primary: var(--border-color);
+	--card-bg: var(--panel);
+	--card-border: var(--border-color);
+	--accent-primary: #2dd4bf;
+	--accent-secondary: #fbbf24;
+	--accent-glow: rgba(45, 212, 191, 0.2);
+	--shadow-soft: 0 12px 36px rgba(2, 6, 23, 0.35);
 }
 
 body {
 	@apply bg-(--bg-primary) text-(--text-primary) antialiased;
-	font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+	font-family: 'Space Grotesk', 'Trebuchet MS', sans-serif;
+	background-image: var(--grid-pattern),
+		radial-gradient(circle at top right, rgba(15, 118, 110, 0.12), transparent 35%);
+	background-size:
+		28px 28px,
+		auto;
 }
 
-/* Cyber glow effect utility */
+code,
+pre,
+.font-mono {
+	font-family: 'IBM Plex Mono', monospace;
+}
+
 .cyber-glow {
 	box-shadow: 0 0 20px var(--accent-glow);
 }
