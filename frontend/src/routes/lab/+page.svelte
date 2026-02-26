@@ -120,7 +120,7 @@
 		actionError = null;
 		actionSuccess = null;
 		if (!selectedGroundTruth) {
-			actionError = 'Select a ground truth JSON file first.';
+			actionSuccess = 'Ground truth is optional. You can run analysis without uploading labels.';
 			return;
 		}
 		isUploadingGroundTruth = true;
@@ -246,7 +246,7 @@
 				</button>
 				<div class="space-y-2">
 					<label class="block text-xs font-semibold uppercase tracking-wide text-[var(--text-secondary)]">
-						Ground truth JSON
+						Ground truth JSON (optional)
 					</label>
 					<input
 						id="ground-truth-file-input"
@@ -272,7 +272,7 @@
 				</div>
 				<button
 					onclick={handleGroundTruthUpload}
-					disabled={isUploadingGroundTruth}
+					disabled={isUploadingGroundTruth || !selectedGroundTruth}
 					class="rounded-lg border border-[var(--border-color)] px-3 py-2 text-sm font-medium text-[var(--text-primary)] disabled:opacity-60"
 				>
 					{isUploadingGroundTruth ? 'Uploading labels...' : 'Upload Ground Truth'}

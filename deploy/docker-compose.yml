@@ -1,3 +1,6 @@
+volumes:
+  pcap-data:
+
 services:
   redis:
     image: redis:7-alpine
@@ -23,22 +26,43 @@ services:
       timeout: 3s
       retries: 10
 
+  pcap-fetcher:
+    image: alpine:3.19
+    volumes:
+      - pcap-data:/data
+    command:
+      - sh
+      - -c
+      - |
+        if [ -f /data/traffic.pcap ]; then
+          echo 'PCAP already present, skipping download'
+        else
+          apk add --no-cache curl &&
+          curl -fL --retry 5 --retry-delay 2 -o /data/traffic.pcap https://github.com/arkime/arkime/raw/main/tests/pcap/arkime_synthetic.pcap &&
+          echo 'PCAP downloaded successfully'
+        fi
+    restart: "no"
+
   collector:
     build:
       context: ../services/collector
     depends_on:
       redis:
         condition: service_healthy
+      pcap-fetcher:
+        condition: service_completed_successfully
+    volumes:
+      - pcap-data:/data:ro
     environment:
       REDIS_ADDR: redis:6379
       REDIS_STREAM: flows
-      CAPTURE_MODE: ${CAPTURE_MODE:-auto}
-      CAPTURE_IFACE: ${CAPTURE_IFACE:-}
-      PCAP_PATH: ${PCAP_PATH:-}
-      BPF_FILTER: ${BPF_FILTER:-}
+      CAPTURE_MODE: pcap
+      PCAP_PATH: /data/traffic.pcap
+      PCAP_LOOP: "10"
       FLOW_IDLE_TIMEOUT: ${FLOW_IDLE_TIMEOUT:-10s}
       FLOW_MAX_DURATION: ${FLOW_MAX_DURATION:-5m}
       FLUSH_INTERVAL: ${FLUSH_INTERVAL:-2s}
+    restart: "no"
 
   detector:
     build:
@@ -66,11 +90,11 @@ services:
     environment:
       DATABASE_URL: postgresql+psycopg://signalforge:signalforge@postgres:5432/signalforge
       PORT: 8000
-      JWT_SECRET: ${JWT_SECRET:-change-me}
+      JWT_SECRET: ${JWT_SECRET:-acaffcf16aabe4cc27576fb2f0110a70f4d432cd197f18e852e542e273ac3a50}
       JWT_EXPIRE_MIN: ${JWT_EXPIRE_MIN:-60}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin}
-      ANALYST_PASSWORD: ${ANALYST_PASSWORD:-analyst}
-      VIEWER_PASSWORD: ${VIEWER_PASSWORD:-viewer}
+      ANALYST_PASSWORD: ${ANALYST_PASSWORD:-4fd98b722498982657092a18d9703b464176c543a733e16d}
+      VIEWER_PASSWORD: ${VIEWER_PASSWORD:-0af351b0a06143a05f5ac3f8fa6085afd440d7b4b60ae12b}
 
   frontend:
     build:

@@ -1,5 +1,6 @@
 import json
 import os
+import secrets
 import time
 import asyncio
 import uuid
@@ -7,6 +8,7 @@ import csv
 import io
 from datetime import datetime, timedelta, timezone
 from typing import Dict, Optional, Set, AsyncGenerator, Mapping, Any
+from urllib.parse import quote
 
 from fastapi import Depends, FastAPI, Form, HTTPException, Request, status
 from fastapi.encoders import jsonable_encoder
@@ -50,6 +52,7 @@ from .auth import (
     require_scope,
     verify_password,
 )
+from .auth_email import EmailService, build_reset_email, build_verification_email
 
 if not DATABASE_URL:
     raise RuntimeError("DATABASE_URL must be set")
@@ -160,6 +163,28 @@ users = Table(
     Column("created_at", DateTime, nullable=False),
 )
 
+auth_tokens = Table(
+    "auth_tokens",
+    metadata,
+    Column("id", String, primary_key=True),
+    Column("user_id", String, nullable=False),
+    Column("email", String, nullable=False),
+    Column("purpose", String, nullable=False),  # verify_email | reset_password
+    Column("token", String, nullable=False, unique=True),
+    Column("expires_at", DateTime, nullable=False),
+    Column("used_at", DateTime, nullable=True),
+    Column("created_at", DateTime, nullable=False),
+)
+
+user_security = Table(
+    "user_security",
+    metadata,
+    Column("user_id", String, primary_key=True),
+    Column("email_verified", Integer, nullable=False, default=0),
+    Column("verified_at", DateTime, nullable=True),
+    Column("updated_at", DateTime, nullable=False),
+)
+
 metadata.create_all(engine)
 
 app = FastAPI(title="SignalForge API")
@@ -208,6 +233,9 @@ def build_users() -> Dict[str, Dict[str, str]]:
 
 
 USERS = build_users()
+email_service = EmailService()
+FRONTEND_BASE_URL = os.getenv("FRONTEND_BASE_URL", "http://localhost:8089").rstrip("/")
+AUTH_REQUIRE_EMAIL_VERIFIED = os.getenv("AUTH_REQUIRE_EMAIL_VERIFIED", "false").lower() == "true"
 
 
 
@@ -233,6 +261,104 @@ def create_access_token(data: Dict[str, str], expires_delta: timedelta) -> str:
     return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALG)
 
 
+def get_user_by_email(email: str) -> Optional[Dict[str, Any]]:
+    with engine.begin() as conn:
+        row = conn.execute(select(users).where(users.c.email == email)).mappings().first()
+        if row:
+            return dict(row)
+    return None
+
+
+def is_email_verified(user_id: str) -> bool:
+    with engine.begin() as conn:
+        row = conn.execute(select(user_security).where(user_security.c.user_id == user_id)).mappings().first()
+        if not row:
+            return False
+        return bool(row["email_verified"])
+
+
+def mark_email_verified(user_id: str) -> None:
+    with engine.begin() as conn:
+        existing = conn.execute(
+            select(user_security).where(user_security.c.user_id == user_id)
+        ).mappings().first()
+        now = datetime.now(timezone.utc)
+        if existing:
+            conn.execute(
+                update(user_security)
+                .where(user_security.c.user_id == user_id)
+                .values(email_verified=1, verified_at=now, updated_at=now)
+            )
+        else:
+            conn.execute(
+                user_security.insert().values(
+                    user_id=user_id,
+                    email_verified=1,
+                    verified_at=now,
+                    updated_at=now,
+                )
+            )
+
+
+def create_auth_token_record(
+    user_id: str,
+    email: str,
+    purpose: str,
+    expires_in_minutes: int,
+) -> str:
+    token = secrets.token_urlsafe(32)
+    now = datetime.now(timezone.utc)
+    with engine.begin() as conn:
+        conn.execute(
+            auth_tokens.insert().values(
+                id=f"tok-{int(time.time() * 1000)}-{uuid.uuid4().hex[:8]}",
+                user_id=user_id,
+                email=email,
+                purpose=purpose,
+                token=token,
+                expires_at=now + timedelta(minutes=expires_in_minutes),
+                used_at=None,
+                created_at=now,
+            )
+        )
+    return token
+
+
+def consume_auth_token(token: str, purpose: str) -> Optional[Dict[str, Any]]:
+    now = datetime.now(timezone.utc)
+    with engine.begin() as conn:
+        row = conn.execute(
+            select(auth_tokens).where(
+                (auth_tokens.c.token == token)
+                & (auth_tokens.c.purpose == purpose)
+                & (auth_tokens.c.used_at.is_(None))
+            )
+        ).mappings().first()
+        if not row:
+            return None
+        if row["expires_at"] < now:
+            return None
+
+        conn.execute(
+            update(auth_tokens)
+            .where(auth_tokens.c.id == row["id"])
+            .values(used_at=now)
+        )
+        return dict(row)
+
+
+def send_verification_email(username: str, email: str, token: str) -> tuple[bool, str]:
+    verify_url = f"{FRONTEND_BASE_URL}/verify-email?token={quote(token)}"
+    subject, html, text = build_verification_email(username=username, verify_url=verify_url)
+    return email_service.send_email(to_email=email, subject=subject, html_body=html, text_body=text)
+
+
+def send_password_reset_email(username: str, email: str, token: str) -> tuple[bool, str]:
+    reset_url = f"{FRONTEND_BASE_URL}/reset-password?token={quote(token)}"
+    subject, html, text = build_reset_email(username=username, reset_url=reset_url)
+    return email_service.send_email(to_email=email, subject=subject, html_body=html, text_body=text)
+
+
 
 
 @app.post("/auth/token")
@@ -246,6 +372,12 @@ def login(request: Request, form_data: OAuth2PasswordRequestForm = Depends()):
             request_id=get_request_id(request),
         )
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="invalid_credentials")
+
+    if AUTH_REQUIRE_EMAIL_VERIFIED:
+        db_user = get_user_from_db(user["username"])
+        if db_user and not is_email_verified(db_user["id"]):
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="email_not_verified")
+
     token = create_access_token(
         {"sub": user["username"], "role": user["role"]},
         expires_delta=timedelta(minutes=JWT_EXPIRE_MIN),
@@ -296,15 +428,129 @@ def register(
                 created_at=datetime.now(timezone.utc),
             )
         )
+        conn.execute(
+            user_security.insert().values(
+                user_id=user_id,
+                email_verified=0,
+                verified_at=None,
+                updated_at=datetime.now(timezone.utc),
+            )
+        )
+
+    verify_token = create_auth_token_record(
+        user_id=user_id,
+        email=email,
+        purpose="verify_email",
+        expires_in_minutes=60 * 24,
+    )
+    email_sent, email_status = send_verification_email(username=username, email=email, token=verify_token)
 
     write_audit(
         event="user_registered",
         actor=username,
-        metadata={"role": role, "email": email},
+        metadata={"role": role, "email": email, "verification_email_sent": email_sent, "email_status": email_status},
         request_id=get_request_id(request),
     )
 
-    return {"status": "registered", "username": username, "role": role}
+    return {
+        "status": "registered",
+        "username": username,
+        "role": role,
+        "verification_email_sent": email_sent,
+        "email_delivery_status": email_status,
+    }
+
+
+@app.get("/auth/verify-email")
+def verify_email(token: str, request: Request):
+    token_data = consume_auth_token(token=token, purpose="verify_email")
+    if not token_data:
+        raise HTTPException(status_code=400, detail="invalid_or_expired_token")
+
+    mark_email_verified(token_data["user_id"])
+    write_audit(
+        event="email_verified",
+        actor=token_data["email"],
+        metadata={"user_id": token_data["user_id"]},
+        request_id=get_request_id(request),
+    )
+    return {"status": "verified"}
+
+
+@app.post("/auth/resend-verification")
+def resend_verification(request: Request, email: str = Form(...)):
+    user = get_user_by_email(email)
+    if not user:
+        return {"status": "ok"}
+
+    if is_email_verified(user["id"]):
+        return {"status": "already_verified"}
+
+    token = create_auth_token_record(
+        user_id=user["id"],
+        email=user["email"],
+        purpose="verify_email",
+        expires_in_minutes=60 * 24,
+    )
+    email_sent, email_status = send_verification_email(username=user["username"], email=user["email"], token=token)
+    write_audit(
+        event="verification_resent",
+        actor=user["username"],
+        metadata={"email": user["email"], "email_sent": email_sent, "email_status": email_status},
+        request_id=get_request_id(request),
+    )
+    return {"status": "sent" if email_sent else "queued", "email_delivery_status": email_status}
+
+
+@app.post("/auth/forgot-password")
+def forgot_password(request: Request, email: str = Form(...)):
+    user = get_user_by_email(email)
+    if user:
+        token = create_auth_token_record(
+            user_id=user["id"],
+            email=user["email"],
+            purpose="reset_password",
+            expires_in_minutes=30,
+        )
+        email_sent, email_status = send_password_reset_email(
+            username=user["username"],
+            email=user["email"],
+            token=token,
+        )
+        write_audit(
+            event="password_reset_requested",
+            actor=user["username"],
+            metadata={"email_sent": email_sent, "email_status": email_status},
+            request_id=get_request_id(request),
+        )
+
+    # Don't leak user existence.
+    return {"status": "ok"}
+
+
+@app.post("/auth/reset-password")
+def reset_password(request: Request, token: str = Form(...), new_password: str = Form(...)):
+    if len(new_password) < 8:
+        raise HTTPException(status_code=400, detail="password_too_short")
+
+    token_data = consume_auth_token(token=token, purpose="reset_password")
+    if not token_data:
+        raise HTTPException(status_code=400, detail="invalid_or_expired_token")
+
+    with engine.begin() as conn:
+        conn.execute(
+            update(users)
+            .where(users.c.id == token_data["user_id"])
+            .values(hashed_password=pwd_context.hash(new_password))
+        )
+
+    write_audit(
+        event="password_reset_completed",
+        actor=token_data["email"],
+        metadata={"user_id": token_data["user_id"]},
+        request_id=get_request_id(request),
+    )
+    return {"status": "password_updated"}
 
 
 def get_user_from_db(username: str) -> Optional[Dict[str, Any]]:
@@ -321,7 +567,14 @@ def get_user_from_db(username: str) -> Optional[Dict[str, Any]]:
 
 @app.get("/auth/me")
 def me(user: Dict[str, str] = Depends(get_current_user)):
-    return user
+    db_user = get_user_from_db(user["username"])
+    if not db_user:
+        return user
+    return {
+        **user,
+        "email": db_user["email"],
+        "is_email_verified": is_email_verified(db_user["id"]),
+    }
 
 
 @app.get("/scopes")

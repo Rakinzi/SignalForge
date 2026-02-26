@@ -7,11 +7,11 @@ services:
     environment:
       DATABASE_URL: postgresql+psycopg://signalforge:signalforge@postgres:5432/signalforge
       PORT: 8000
-      JWT_SECRET: ${JWT_SECRET:-change-me}
+      JWT_SECRET: ${JWT_SECRET:-acaffcf16aabe4cc27576fb2f0110a70f4d432cd197f18e852e542e273ac3a50}
       JWT_EXPIRE_MIN: ${JWT_EXPIRE_MIN:-60}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin}
-      ANALYST_PASSWORD: ${ANALYST_PASSWORD:-analyst}
-      VIEWER_PASSWORD: ${VIEWER_PASSWORD:-viewer}
+      ANALYST_PASSWORD: ${ANALYST_PASSWORD:-4fd98b722498982657092a18d9703b464176c543a733e16d}
+      VIEWER_PASSWORD: ${VIEWER_PASSWORD:-0af351b0a06143a05f5ac3f8fa6085afd440d7b4b60ae12b}
     # no host port in dev; access via nginx
     command: ["uv", "run", "uvicorn", "api.app:app", "--reload", "--host", "0.0.0.0", "--port", "8000"]
     depends_on:
@@ -65,7 +65,7 @@ services:
       HMR_HOST: ${HMR_HOST:-localhost}
       HMR_PORT: ${HMR_PORT:-8089}
       VITE_API_USERNAME: ${VITE_API_USERNAME:-analyst}
-      VITE_API_PASSWORD: ${VITE_API_PASSWORD:-analyst}
+      VITE_API_PASSWORD: ${VITE_API_PASSWORD:-4fd98b722498982657092a18d9703b464176c543a733e16d}
     # no host port in dev; access via nginx
     command: ["sh", "-lc", "bun install && bun run dev --host 0.0.0.0 --port 3000"]
     depends_on:

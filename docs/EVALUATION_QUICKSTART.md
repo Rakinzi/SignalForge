@@ -14,6 +14,11 @@
 
 3. **Configuration**: `config/detector_config.json` set up
 
+4. **Default Protocol**: Cross-dataset holdout (research default)
+   - Train baseline on benign-heavy subset from Dataset A
+   - Tune thresholds on Dataset B
+   - Test on disjoint scenarios from Dataset C/D
+
 ---
 
 ## Quick Evaluation (CLI)
@@ -81,6 +86,25 @@ curl -X GET http://localhost:8000/reports \
     "accuracy": 0.9901,        // (TP + TN) / total
     "false_positive_rate": 0.0063,  // FP / (FP + TN)
     "false_negative_rate": 0.0337   // FN / (FN + TP)
+  }
+}
+```
+
+### Protocol + Provenance (Required for reproducibility)
+
+```json
+{
+  "protocol": {
+    "split_strategy": "cross-dataset-holdout",
+    "train_set": "dataset-a-benign",
+    "validation_set": "dataset-b-tuning",
+    "test_sets": ["dataset-c-main-test", "dataset-d-robustness"]
+  },
+  "provenance": {
+    "dataset_hash": "sha256...",
+    "config_hash": "sha256...",
+    "commit_sha": "abc1234",
+    "run_timestamp": "2026-02-26T12:34:56Z"
   }
 }
 ```
@@ -173,6 +197,10 @@ Expected output:
 ### Imbalanced Dataset
 **Cause**: 99% benign traffic inflates accuracy
 **Fix**: Report precision/recall/F1 separately, don't rely on accuracy alone
+
+### Missing Provenance Block
+**Cause**: Run was executed outside standard pipeline path
+**Fix**: Re-run with DetectionPipeline and verify `protocol` and `provenance` exist in report JSON
 
 ### No Ground Truth Labels
 **Cause**: Dataset missing "Label" or "is_malicious" column

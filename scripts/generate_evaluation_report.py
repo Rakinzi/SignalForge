@@ -58,10 +58,11 @@ def parse_evaluation_notes(notes_str: str) -> Dict[str, Any]:
 
 def format_confusion_matrix(confusion: Dict[str, int]) -> str:
     """Format confusion matrix as markdown table."""
-    tp = confusion.get("true_positives", 0)
-    fp = confusion.get("false_positives", 0)
-    tn = confusion.get("true_negatives", 0)
-    fn = confusion.get("false_negatives", 0)
+    base = confusion.get("confusion_matrix", confusion)
+    tp = base.get("true_positives", 0)
+    fp = base.get("false_positives", 0)
+    tn = base.get("true_negatives", 0)
+    fn = base.get("false_negatives", 0)
 
     return f"""
 ### Confusion Matrix
@@ -108,6 +109,32 @@ def format_metrics(metrics: Dict[str, float]) -> str:
 """
 
 
+def format_protocol(protocol: Dict[str, Any]) -> str:
+    """Format evaluation protocol section."""
+    test_sets = protocol.get("test_sets", [])
+    test_sets_text = ", ".join(test_sets) if test_sets else "unknown"
+    return f"""
+## Evaluation Protocol
+
+- **Split Strategy**: {protocol.get("split_strategy", "unknown")}
+- **Train Set**: {protocol.get("train_set", "unknown")}
+- **Validation Set**: {protocol.get("validation_set", "unknown")}
+- **Test Sets**: {test_sets_text}
+"""
+
+
+def format_provenance(provenance: Dict[str, Any]) -> str:
+    """Format reproducibility provenance metadata."""
+    return f"""
+## Reproducibility Provenance
+
+- **Dataset Hash**: `{provenance.get("dataset_hash", "unknown")}`
+- **Config Hash**: `{provenance.get("config_hash", "unknown")}`
+- **Commit SHA**: `{provenance.get("commit_sha", "unknown")}`
+- **Run Timestamp**: {provenance.get("run_timestamp", "unknown")}
+"""
+
+
 def generate_report(database_url: str, output_path: Optional[str] = None) -> str:
     """Generate evaluation report from database."""
     print("Fetching latest evaluation from database...", file=sys.stderr)
@@ -120,8 +147,10 @@ def generate_report(database_url: str, output_path: Optional[str] = None) -> str
     print(f"Found evaluation from {evaluation['created_at']}", file=sys.stderr)
 
     notes = parse_evaluation_notes(evaluation["notes"])
-    confusion = notes.get("confusion_matrix", {})
+    confusion = notes.get("confusion_matrix", notes.get("confusion", {}))
     metrics = notes.get("metrics", {})
+    protocol = notes.get("protocol", {})
+    provenance = notes.get("provenance", {})
 
     if not confusion or not metrics:
         print("Error: Evaluation data missing confusion matrix or metrics", file=sys.stderr)
@@ -152,6 +181,14 @@ def generate_report(database_url: str, output_path: Optional[str] = None) -> str
 ---
 
 {format_metrics(metrics)}
+
+---
+
+{format_protocol(protocol)}
+
+---
+
+{format_provenance(provenance)}
 
 ---
 

@@ -25,6 +25,14 @@ class DetectionClass(Enum):
     MALICIOUS = "malicious"
 
 
+DETECTION_CLASS_SEMANTICS = {
+    "benign": "No suspicious rule evidence; safe by deterministic policy.",
+    "uncertain": "Weak/partial rule evidence; requires statistical corroboration.",
+    "suspicious": "Strong rule evidence; elevated risk, prioritize statistical check.",
+    "malicious": "Critical rule evidence; deterministic verdict dominates final decision.",
+}
+
+
 @dataclass
 class Rule:
     """
@@ -140,6 +148,11 @@ class DeterministicDetector:
             self.load_rules(rules_path)
         else:
             self._load_default_rules()
+
+    @staticmethod
+    def get_classification_semantics() -> Dict[str, str]:
+        """Return deterministic class semantics for documentation and API use."""
+        return DETECTION_CLASS_SEMANTICS.copy()
 
     def load_rules(self, rules_path: str) -> None:
         """Load rules from JSON file"""

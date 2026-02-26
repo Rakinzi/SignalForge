@@ -20,23 +20,23 @@ import (
 )
 
 type FlowKey struct {
-	AIP    string
-	BIP    string
-	APort  uint16
-	BPort  uint16
-	Proto  string
+	AIP   string
+	BIP   string
+	APort uint16
+	BPort uint16
+	Proto string
 }
 
 type FlowAgg struct {
-	Key          FlowKey
-	Start        time.Time
-	LastSeen     time.Time
-	FwdPackets   int
-	BwdPackets   int
-	FwdBytes     int
-	BwdBytes     int
-	FwdTcpFlags  string
-	BwdTcpFlags  string
+	Key         FlowKey
+	Start       time.Time
+	LastSeen    time.Time
+	FwdPackets  int
+	BwdPackets  int
+	FwdBytes    int
+	BwdBytes    int
+	FwdTcpFlags string
+	BwdTcpFlags string
 }
 
 type FlowSummary struct {
@@ -70,16 +70,17 @@ type EventEnvelope struct {
 
 func main() {
 	var (
-		mode       = getenv("CAPTURE_MODE", "auto")
-		iface      = getenv("CAPTURE_IFACE", "")
-		pcapPath   = getenv("PCAP_PATH", "")
-		bpf        = getenv("BPF_FILTER", "")
-		idleStr    = getenv("FLOW_IDLE_TIMEOUT", "10s")
-		maxStr     = getenv("FLOW_MAX_DURATION", "5m")
-		flushStr   = getenv("FLUSH_INTERVAL", "2s")
-		stream     = getenv("REDIS_STREAM", "flows")
-		addr       = getenv("REDIS_ADDR", "redis:6379")
-		bufferStr  = getenv("EMIT_BUFFER", "10000")
+		mode      = getenv("CAPTURE_MODE", "auto")
+		iface     = getenv("CAPTURE_IFACE", "")
+		pcapPath  = getenv("PCAP_PATH", "")
+		bpf       = getenv("BPF_FILTER", "")
+		idleStr   = getenv("FLOW_IDLE_TIMEOUT", "10s")
+		maxStr    = getenv("FLOW_MAX_DURATION", "5m")
+		flushStr  = getenv("FLUSH_INTERVAL", "2s")
+		stream    = getenv("REDIS_STREAM", "flows")
+		addr      = getenv("REDIS_ADDR", "redis:6379")
+		bufferStr = getenv("EMIT_BUFFER", "10000")
+		loopStr   = getenv("PCAP_LOOP", "1")
 	)
 
 	flag.Parse()
@@ -91,24 +92,32 @@ func main() {
 	if bufferSize < 100 {
 		bufferSize = 100
 	}
+	loopCount, _ := strconv.Atoi(loopStr)
+	if loopCount < 1 {
+		loopCount = 1
+	}
 
 	ctx := context.Background()
 	rdb := redis.NewClient(&redis.Options{Addr: addr})
 
 	events := make(chan FlowSummary, bufferSize)
-	go emitLoop(ctx, rdb, stream, events)
+	var emitDone sync.WaitGroup
+	emitDone.Add(1)
+	go func() {
+		defer emitDone.Done()
+		emitLoop(ctx, rdb, stream, events)
+	}()
 
 	logJSON("collector_start", map[string]interface{}{
-		"mode": mode,
-		"iface": iface,
-		"pcap": pcapPath,
+		"mode":         mode,
+		"iface":        iface,
+		"pcap":         pcapPath,
+		"loop":         loopCount,
 		"idle_timeout": idleTimeout.String(),
 		"max_duration": maxDuration.String(),
-		"bpf": bpf,
+		"bpf":          bpf,
 	})
 
-	var handle *pcap.Handle
-	var err error
 	if mode == "auto" || mode == "" {
 		if pcapPath != "" {
 			mode = "pcap"
@@ -117,38 +126,21 @@ func main() {
 		}
 	}
 
-	if mode == "pcap" {
-		if pcapPath == "" {
-			log.Fatal("PCAP_PATH required for pcap mode")
-		}
-		handle, err = pcap.OpenOffline(pcapPath)
-	} else {
-		if iface == "" {
-			iface = defaultIface()
-		}
-		handle, err = pcap.OpenLive(iface, 65535, true, pcap.BlockForever)
-	}
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer handle.Close()
-
-	if bpf != "" {
-		if err := handle.SetBPFFilter(bpf); err != nil {
-			log.Fatal(err)
-		}
-	}
-
-	src := gopacket.NewPacketSource(handle, handle.LinkType())
 	flows := make(map[FlowKey]*FlowAgg)
 	var mu sync.Mutex
+	var packetTime time.Time
 
-	// Flusher
+	// Flusher uses packet timestamps so PCAP replay works regardless of capture age.
 	go func() {
 		ticker := time.NewTicker(flushInterval)
 		defer ticker.Stop()
-		for now := range ticker.C {
+		for range ticker.C {
 			mu.Lock()
+			now := packetTime
+			if now.IsZero() {
+				mu.Unlock()
+				continue
+			}
 			for k, f := range flows {
 				if now.Sub(f.LastSeen) >= idleTimeout || now.Sub(f.Start) >= maxDuration {
 					summary := finalizeFlow(f)
@@ -160,13 +152,74 @@ func main() {
 		}
 	}()
 
-		for packet := range src.Packets() {
+	if mode != "pcap" {
+		if iface == "" {
+			iface = defaultIface()
+		}
+		handle, err := pcap.OpenLive(iface, 65535, true, pcap.BlockForever)
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer handle.Close()
+		if bpf != "" {
+			if err := handle.SetBPFFilter(bpf); err != nil {
+				log.Fatal(err)
+			}
+		}
+		readPackets(handle, flows, &mu, &packetTime)
+	} else {
+		if pcapPath == "" {
+			log.Fatal("PCAP_PATH required for pcap mode")
+		}
+		for i := 0; i < loopCount; i++ {
+			handle, err := pcap.OpenOffline(pcapPath)
+			if err != nil {
+				log.Fatal(err)
+			}
+			if bpf != "" {
+				if err := handle.SetBPFFilter(bpf); err != nil {
+					log.Fatal(err)
+				}
+			}
+			logJSON("collector_pass", map[string]interface{}{"pass": i + 1, "of": loopCount})
+			readPackets(handle, flows, &mu, &packetTime)
+			handle.Close()
+
+			// Flush all in-memory flows between passes, tagging with pass index
+			// so each pass produces unique flow IDs even with identical packet timestamps.
+			mu.Lock()
+			for k, f := range flows {
+				s := finalizeFlow(f)
+				s.FlowID = strconv.Itoa(i) + "-" + s.FlowID
+				events <- s
+				delete(flows, k)
+			}
+			mu.Unlock()
+		}
+	}
+
+	// Final flush then drain the emit channel before exiting.
+	mu.Lock()
+	remaining := len(flows)
+	for k, f := range flows {
+		events <- finalizeFlow(f)
+		delete(flows, k)
+	}
+	mu.Unlock()
+	logJSON("collector_done", map[string]interface{}{"final_flush": remaining})
+	close(events)
+	emitDone.Wait()
+}
+
+// readPackets reads all packets from handle into the shared flow table.
+func readPackets(handle *pcap.Handle, flows map[FlowKey]*FlowAgg, mu *sync.Mutex, packetTime *time.Time) {
+	src := gopacket.NewPacketSource(handle, handle.LinkType())
+	for packet := range src.Packets() {
 		netLayer := packet.NetworkLayer()
 		transLayer := packet.TransportLayer()
 		if netLayer == nil || transLayer == nil {
 			continue
 		}
-
 		srcIP, dstIP := parseIPs(netLayer)
 		if srcIP == "" || dstIP == "" {
 			continue
@@ -176,12 +229,12 @@ func main() {
 		if srcPort == 0 && dstPort == 0 {
 			continue
 		}
-
 		key, direction := canonicalKey(srcIP, dstIP, srcPort, dstPort, proto)
 		length := len(packet.Data())
 		ts := packet.Metadata().Timestamp
 
 		mu.Lock()
+		*packetTime = ts.UTC()
 		flow, ok := flows[key]
 		if !ok {
 			flow = &FlowAgg{Key: key, Start: ts.UTC(), LastSeen: ts.UTC()}
@@ -232,21 +285,15 @@ func finalizeFlow(f *FlowAgg) FlowSummary {
 		duration = time.Millisecond
 	}
 	rate := float64(packetCount) / duration.Seconds()
-
-	srcIP := f.Key.AIP
-	dstIP := f.Key.BIP
-	srcPort := int(f.Key.APort)
-	dstPort := int(f.Key.BPort)
-
 	return FlowSummary{
 		SchemaVersion: "1.0",
 		FlowID:        flowID(f),
 		StartTime:     f.Start.UTC().Format(time.RFC3339Nano),
 		EndTime:       f.LastSeen.UTC().Format(time.RFC3339Nano),
-		SrcIP:         srcIP,
-		DstIP:         dstIP,
-		SrcPort:       srcPort,
-		DstPort:       dstPort,
+		SrcIP:         f.Key.AIP,
+		DstIP:         f.Key.BIP,
+		SrcPort:       int(f.Key.APort),
+		DstPort:       int(f.Key.BPort),
 		Protocol:      f.Key.Proto,
 		PacketCount:   packetCount,
 		ByteCount:     byteCount,
@@ -274,9 +321,7 @@ func canonicalKey(srcIP, dstIP string, srcPort, dstPort uint16, proto string) (F
 }
 
 func bytesCompare(a, b net.IP) int {
-	ab := a.To16()
-	bb := b.To16()
-	return bytes.Compare(ab, bb)
+	return bytes.Compare(a.To16(), b.To16())
 }
 
 func parseIPs(nl gopacket.NetworkLayer) (string, string) {
@@ -302,7 +347,7 @@ func parsePortsFlags(tl gopacket.TransportLayer) (uint16, uint16, string) {
 }
 
 func tcpFlags(t *layers.TCP) string {
-	flags := []string{}
+	var flags []string
 	if t.SYN {
 		flags = append(flags, "S")
 	}

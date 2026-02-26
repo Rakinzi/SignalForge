@@ -202,6 +202,7 @@ detector.save_baseline("baseline.json")
 - Configurable weighting (default: 60% deterministic, 40% statistical)
 - Produces single **explainable** final decision
 - Threat levels: `BENIGN`, `LOW`, `MEDIUM`, `HIGH`, `CRITICAL`
+- Emits `fusion_policy_version`, `decision_path_steps`, and `explanation_fields_complete`
 
 **Fusion Logic**:
 ```
@@ -222,6 +223,17 @@ ELSE:
 **Key Classes**:
 - `FinalDecision`: Complete decision with explanation
 - `DecisionFusion`: Hybrid fusion engine
+
+**Decision Semantics**:
+- Deterministic score bands:
+  - benign: `[0.00, 0.35]`
+  - uncertain: `(0.35, 0.60]`
+  - suspicious: `(0.60, 0.85]`
+  - malicious: `(0.85, 1.00]`
+- Statistical bands:
+  - normal: `[0.00, 0.30)`
+  - elevated: `[0.30, 0.70)`
+  - anomalous: `[0.70, 1.00]`
 
 ---
 
@@ -250,6 +262,8 @@ ELSE:
 - Latency tracking per module
 - Throughput measurement (flows/second)
 - Ground truth comparison
+- Evaluation protocol metadata (`split_strategy`, `train_set`, `validation_set`, `test_sets`)
+- Provenance metadata (`dataset_hash`, `config_hash`, `commit_sha`, `run_timestamp`)
 
 **Key Classes**:
 - `ConfusionMatrix`: Binary classification metrics
@@ -316,6 +330,21 @@ print(f"Recall: {report['metrics']['recall']:.2%}")
 pipeline.train_statistical_detector("benign_traffic.pcap")
 pipeline.statistical_detector.save_baseline("baseline.json")
 ```
+
+### 3.3 Default Evaluation Protocol
+
+- Strategy: `cross-dataset-holdout`
+- Train: benign-heavy subset from Dataset A
+- Validation: threshold tuning on Dataset B
+- Test: disjoint scenarios from Dataset C/D
+- Requirement: no train/validation/test overlap; provenance block mandatory
+
+### 3.4 Acceptance Criteria (Research Baseline)
+
+- Deterministic + statistical + fusion output must include a traceable decision path.
+- Evaluation report must include confusion matrix, precision, recall, F1, and throughput.
+- Every evaluation run must contain protocol and provenance metadata.
+- No payload decryption/inspection is allowed at any stage.
 
 ---
 

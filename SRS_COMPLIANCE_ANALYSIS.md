@@ -12,6 +12,15 @@ This document analyzes the current SignalForge implementation against the formal
 
 **Overall Assessment**: The system is **85% compliant** with the SRS. Core architecture is correct, but several critical refinements are needed.
 
+### 2026-02-26 Update (Implemented)
+
+The following previously high-impact gaps are now explicitly addressed in `services/api/api/detection/*`:
+- Decision semantics are codified with deterministic/statistical score bands.
+- Fusion tie-break policy is explicit and versioned (`fusion_policy_version`).
+- Final decisions include structured path traces (`decision_path_steps`) and explainability completeness checks.
+- Evaluation reports now emit protocol/provenance metadata (`protocol`, `provenance`) for reproducibility.
+- Default evaluation methodology is set to `cross-dataset-holdout`.
+
 ---
 
 ## 1. SRS Requirements vs Current Implementation

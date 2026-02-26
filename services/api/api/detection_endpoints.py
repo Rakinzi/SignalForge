@@ -193,6 +193,11 @@ async def analyze_pcap(
 
     This starts a detection job and returns job ID for status checking.
     """
+    # Normalize optional inputs so callers can omit labels cleanly.
+    rules_path = (rules_path or "").strip() or None
+    baseline_path = (baseline_path or "").strip() or None
+    ground_truth_path = (ground_truth_path or "").strip() or None
+
     # Validate paths
     if not os.path.exists(pcap_path):
         raise HTTPException(status_code=404, detail="PCAP file not found")

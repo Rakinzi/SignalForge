@@ -104,6 +104,41 @@ python -m api.detection.pipeline \
 
 **Execution Time**: [e.g., 22.3 seconds for 10,000 flows]
 
+### 3.4 Evaluation Protocol (Decision Complete)
+
+- **Split Strategy**: `cross-dataset-holdout` (default)
+- **Train Set**: [Dataset A benign-heavy subset]
+- **Validation Set**: [Dataset B threshold-tuning subset]
+- **Test Sets**: [Dataset C main test], [Dataset D robustness test]
+- **No overlap** between train/validation/test flow identifiers
+
+### 3.5 Reproducibility Provenance
+
+| Field | Value |
+|------|-------|
+| `dataset_hash` | [SHA-256] |
+| `config_hash` | [SHA-256] |
+| `commit_sha` | [git short SHA] |
+| `run_timestamp` | [ISO-8601 UTC] |
+
+### 3.6 Decision Semantics
+
+| Component | Band | Range |
+|----------|------|-------|
+| Deterministic | benign | [0.00, 0.35] |
+| Deterministic | uncertain | (0.35, 0.60] |
+| Deterministic | suspicious | (0.60, 0.85] |
+| Deterministic | malicious | (0.85, 1.00] |
+| Statistical | normal | [0.00, 0.30) |
+| Statistical | elevated | [0.30, 0.70) |
+| Statistical | anomalous | [0.70, 1.00] |
+
+Fusion tie-break policy:
+- Deterministic `malicious` dominates to `critical`
+- `suspicious + anomalous` => `high`
+- `benign + anomalous` => `medium` + investigation flag
+- `uncertain` relies on statistical threshold
+
 ---
 
 ## 4. Results
@@ -258,6 +293,25 @@ python -m api.detection.pipeline \
 | Slow exfiltration | [19] | [42.2%] | Low-bandwidth data theft (below rate thresholds) |
 | Encrypted C2 tunneling | [12] | [26.7%] | HTTPS C2 blends with normal traffic |
 | Zero-day attacks | [8] | [17.8%] | Novel patterns not covered by rules |
+
+---
+
+## 7. Threat Model Boundaries
+
+### 7.1 Expected Strengths
+- Beaconing/C2 periodic behavior
+- Exfiltration with observable flow asymmetry
+- Scanning/flooding with strong volumetric signatures
+
+### 7.2 Known Weaknesses
+- Slow-and-low attacks near benign baselines
+- Highly adaptive traffic shaping that mimics benign timing
+- Novel attacks without rule coverage and low statistical drift
+
+### 7.3 Explicitly Out of Scope
+- Payload/content-based malware signatures
+- Decryption-dependent detection
+- Opaque deep-learning classifiers without explainability
 | Baseline pollution | [4] | [8.9%] | Attacker established baseline before detection |
 | Short-lived attacks | [2] | [4.4%] | Sub-second attacks escaped detection window |
 

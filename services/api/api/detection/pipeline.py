@@ -5,7 +5,11 @@ Complete end-to-end pipeline orchestrating all detection modules.
 Implements the cascaded hybrid detection architecture.
 """
 
+import hashlib
+import os
+import subprocess
 import time
+from datetime import datetime, timezone
 from typing import Iterator, Optional
 
 from .capture import TrafficCapture, create_capture
@@ -73,6 +77,18 @@ class DetectionPipeline:
         self.enable_evaluation = enable_evaluation
         if self.enable_evaluation:
             self.evaluator = EvaluationMetrics()
+            self.evaluator.set_protocol(
+                split_strategy="cross-dataset-holdout",
+                train_set=statistical_baseline_path or "unknown",
+                validation_set=deterministic_rules_path or "unknown",
+                test_sets=[capture_source],
+            )
+            self.evaluator.set_provenance(
+                dataset_hash=self._hash_file(capture_source),
+                config_hash=self._hash_config_inputs(deterministic_rules_path, statistical_baseline_path),
+                commit_sha=self._resolve_commit_sha(),
+                run_timestamp=datetime.now(timezone.utc).isoformat(),
+            )
 
         self._flows_processed = 0
 
@@ -108,7 +124,7 @@ class DetectionPipeline:
             det_result = self.deterministic_detector.detect(features)
             timings["deterministic"] = (time.time() - t0) * 1000
 
-            # Statistical detection (only on suspicious/uncertain flows for efficiency)
+            # Statistical detection (executed for all flows to preserve hybrid validation)
             t0 = time.time()
             stat_result = self.statistical_detector.detect(features)
             timings["statistical"] = (time.time() - t0) * 1000
@@ -195,6 +211,52 @@ class DetectionPipeline:
     def flows_processed(self) -> int:
         """Number of flows processed"""
         return self._flows_processed
+
+    def _hash_file(self, file_path: str) -> str:
+        """Compute SHA-256 hash for a file path if available."""
+        if not file_path or not os.path.isfile(file_path):
+            return "unknown"
+
+        digest = hashlib.sha256()
+        with open(file_path, "rb") as f:
+            for chunk in iter(lambda: f.read(8192), b""):
+                digest.update(chunk)
+        return digest.hexdigest()
+
+    def _hash_config_inputs(
+        self,
+        deterministic_rules_path: Optional[str],
+        statistical_baseline_path: Optional[str],
+    ) -> str:
+        """Hash config inputs to produce a lightweight config provenance identifier."""
+        parts = [
+            self._hash_file(deterministic_rules_path) if deterministic_rules_path else "none",
+            self._hash_file(statistical_baseline_path) if statistical_baseline_path else "none",
+            self.decision_fusion.fusion_policy_version,
+            f"{self.decision_fusion.deterministic_weight:.3f}",
+            f"{self.decision_fusion.statistical_weight:.3f}",
+            f"{self.decision_fusion.statistical_threshold:.3f}",
+        ]
+        digest = hashlib.sha256("|".join(parts).encode("utf-8"))
+        return digest.hexdigest()
+
+    def _resolve_commit_sha(self) -> str:
+        """Resolve current git commit SHA for report provenance."""
+        env_sha = os.getenv("GIT_COMMIT_SHA")
+        if env_sha:
+            return env_sha
+
+        try:
+            return (
+                subprocess.check_output(
+                    ["git", "rev-parse", "--short", "HEAD"],
+                    stderr=subprocess.DEVNULL,
+                    text=True,
+                )
+                .strip()
+            )
+        except Exception:
+            return "unknown"
 
 
 def run_detection(

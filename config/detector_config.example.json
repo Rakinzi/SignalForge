@@ -23,6 +23,31 @@
   "deterministic_weight": 0.6,
   "statistical_weight": 0.4,
   "_comment_fusion": "Weighted average for final score = (det_weight * det_score) + (stat_weight * stat_score). 60/40 split prioritizes rule-based detections (high precision) while allowing statistical layer to refine (catch novel patterns). Sum must equal 1.0.",
+  "fusion_policy_version": "v1.1",
+  "_comment_fusion_policy_version": "Version tag emitted in every final decision for auditability and reproducibility.",
+
+  "_section_decision_semantics": "=== DECISION SEMANTICS (DOCUMENTED BANDS) ===",
+  "deterministic_confidence_bands": {
+    "benign": [0.0, 0.35],
+    "uncertain": [0.35, 0.6],
+    "suspicious": [0.6, 0.85],
+    "malicious": [0.85, 1.0]
+  },
+  "statistical_anomaly_bands": {
+    "normal": [0.0, 0.3],
+    "elevated": [0.3, 0.7],
+    "anomalous": [0.7, 1.0]
+  },
+  "_comment_decision_semantics": "These bands define explainable threshold semantics in reports and fusion documentation.",
+
+  "_section_evaluation_protocol": "=== EVALUATION PROTOCOL DEFAULTS ===",
+  "evaluation_protocol": {
+    "split_strategy": "cross-dataset-holdout",
+    "train_set": "dataset-a-benign",
+    "validation_set": "dataset-b-threshold-tuning",
+    "test_sets": ["dataset-c-main-test", "dataset-d-robustness"]
+  },
+  "_comment_eval_protocol": "Default methodology for Chapter 4 reporting. Replace placeholders with exact dataset/subset IDs.",
 
   "_section_alerting": "=== ALERTING THRESHOLDS ===",
 

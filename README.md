@@ -219,6 +219,20 @@ The system provides comprehensive evaluation:
 - **Performance Metrics**: Processing time, Throughput (flows/sec)
 - **Confusion Matrix**: TP, FP, TN, FN
 - **Per-Module Timing**: Breakdown of pipeline stages
+- **Protocol Metadata**: Split strategy + train/validation/test sets in report
+- **Provenance Metadata**: Dataset/config hashes, commit SHA, UTC run timestamp
+
+### Threat Model Boundaries
+
+SignalForge is designed for encrypted-traffic metadata analysis and performs best on:
+- Beaconing/C2 periodicity
+- Exfiltration asymmetry and volume anomalies
+- Reconnaissance/flooding with strong behavioral signatures
+
+Out of scope by design:
+- Payload decryption/inspection
+- Signature matching requiring packet contents
+- Opaque deep-learning detectors without traceable rationale
 
 ## 🏗️ Project Structure
 

@@ -78,6 +78,7 @@ class AnomalyScore:
     overall_score: float  # 0.0 = normal, 1.0 = highly anomalous
     feature_scores: Dict[str, float] = field(default_factory=dict)
     anomalous_features: List[str] = field(default_factory=list)
+    score_band: str = "normal"
     explanation: str = ""
 
     def to_dict(self) -> dict:
@@ -87,6 +88,7 @@ class AnomalyScore:
             "overall_score": self.overall_score,
             "feature_scores": self.feature_scores,
             "anomalous_features": self.anomalous_features,
+            "score_band": self.score_band,
             "explanation": self.explanation,
         }
 
@@ -98,6 +100,12 @@ class StatisticalDetector:
     Builds profiles of normal behavior and detects deviations.
     Multiple statistical methods: z-score, IQR, isolation-based.
     """
+
+    SCORE_BANDS = {
+        "normal": (0.0, 0.30),
+        "elevated": (0.30, 0.70),
+        "anomalous": (0.70, 1.0),
+    }
 
     def __init__(
         self,
@@ -173,6 +181,7 @@ class StatisticalDetector:
             return AnomalyScore(
                 flow_id=features.flow_id,
                 overall_score=0.0,
+                score_band="normal",
                 explanation="Detector not trained - insufficient baseline data",
             )
 
@@ -222,8 +231,17 @@ class StatisticalDetector:
             overall_score=overall_score,
             feature_scores=feature_scores,
             anomalous_features=anomalous_features,
+            score_band=self._score_band(overall_score),
             explanation=explanation,
         )
+
+    def _score_band(self, score: float) -> str:
+        """Categorize anomaly score into deterministic reporting bands."""
+        if score >= self.SCORE_BANDS["anomalous"][0]:
+            return "anomalous"
+        if score >= self.SCORE_BANDS["elevated"][0]:
+            return "elevated"
+        return "normal"
 
     def update_baseline(self, features: FlowFeatures) -> None:
         """

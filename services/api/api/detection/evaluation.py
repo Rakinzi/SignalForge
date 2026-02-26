@@ -8,11 +8,10 @@ Complies with SRS Section 3.8: Evaluation Module
 """
 
 import json
-import time
 from collections import defaultdict
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 
 from .fusion import FinalDecision, ThreatLevel
 
@@ -173,6 +172,42 @@ class EvaluationResults:
         }
 
 
+@dataclass
+class EvaluationProtocol:
+    """Evaluation protocol metadata for reproducible research reporting."""
+
+    split_strategy: str = "cross-dataset-holdout"
+    train_set: str = "unknown"
+    validation_set: str = "unknown"
+    test_sets: List[str] = field(default_factory=list)
+
+    def to_dict(self) -> dict:
+        return {
+            "split_strategy": self.split_strategy,
+            "train_set": self.train_set,
+            "validation_set": self.validation_set,
+            "test_sets": self.test_sets,
+        }
+
+
+@dataclass
+class EvaluationProvenance:
+    """Run provenance metadata for reproducibility and auditability."""
+
+    dataset_hash: str = "unknown"
+    config_hash: str = "unknown"
+    commit_sha: str = "unknown"
+    run_timestamp: str = "unknown"
+
+    def to_dict(self) -> dict:
+        return {
+            "dataset_hash": self.dataset_hash,
+            "config_hash": self.config_hash,
+            "commit_sha": self.commit_sha,
+            "run_timestamp": self.run_timestamp,
+        }
+
+
 class EvaluationMetrics:
     """
     Evaluation system for detection pipeline
@@ -185,6 +220,8 @@ class EvaluationMetrics:
         self.performance_metrics = PerformanceMetrics()
         self.threat_distribution: Dict[str, int] = defaultdict(int)
         self.investigation_count = 0
+        self.protocol = EvaluationProtocol()
+        self.provenance = EvaluationProvenance()
 
         # Decision history
         self.decisions: List[FinalDecision] = []
@@ -197,6 +234,36 @@ class EvaluationMetrics:
     def add_ground_truth_batch(self, labels: Dict[str, bool]) -> None:
         """Add multiple ground truth labels"""
         self.ground_truth.update(labels)
+
+    def set_protocol(
+        self,
+        split_strategy: str = "cross-dataset-holdout",
+        train_set: str = "unknown",
+        validation_set: str = "unknown",
+        test_sets: Optional[List[str]] = None,
+    ) -> None:
+        """Set evaluation protocol metadata."""
+        self.protocol = EvaluationProtocol(
+            split_strategy=split_strategy,
+            train_set=train_set,
+            validation_set=validation_set,
+            test_sets=test_sets or [],
+        )
+
+    def set_provenance(
+        self,
+        dataset_hash: str = "unknown",
+        config_hash: str = "unknown",
+        commit_sha: str = "unknown",
+        run_timestamp: str = "unknown",
+    ) -> None:
+        """Set evaluation provenance metadata."""
+        self.provenance = EvaluationProvenance(
+            dataset_hash=dataset_hash,
+            config_hash=config_hash,
+            commit_sha=commit_sha,
+            run_timestamp=run_timestamp,
+        )
 
     def evaluate_decision(
         self,
@@ -303,6 +370,8 @@ class EvaluationMetrics:
             "detection_rate": self.confusion_matrix.recall,
             "false_positive_rate": self.confusion_matrix.false_positive_rate,
             "false_negative_rate": self.confusion_matrix.false_negative_rate,
+            "protocol": self.protocol.to_dict(),
+            "provenance": self.provenance.to_dict(),
         }
 
         if output_path:
@@ -339,3 +408,5 @@ class EvaluationMetrics:
         self.investigation_count = 0
         self.decisions = []
         self.ground_truth = {}
+        self.protocol = EvaluationProtocol()
+        self.provenance = EvaluationProvenance()

@@ -9,7 +9,11 @@
     "rules_triggered",
     "anomaly_score",
     "baseline",
-    "explanation"
+    "explanation",
+    "fusion_policy_version",
+    "decision_path",
+    "decision_path_steps",
+    "explanation_fields_complete"
   ],
   "properties": {
     "schema_version": {"type": "string"},
@@ -17,6 +21,10 @@
     "rules_triggered": {"type": "array", "items": {"type": "string"}},
     "anomaly_score": {"type": "number"},
     "baseline": {"type": "object"},
-    "explanation": {"type": "string"}
+    "explanation": {"type": "string"},
+    "fusion_policy_version": {"type": "string"},
+    "decision_path": {"type": "string"},
+    "decision_path_steps": {"type": "array", "items": {"type": "string"}},
+    "explanation_fields_complete": {"type": "boolean"}
   }
 }

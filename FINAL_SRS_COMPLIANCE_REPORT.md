@@ -12,6 +12,15 @@ The SignalForge system has been **fully aligned** with the formal Software Requi
 
 **Compliance Score**: **100%** (up from initial 85%)
 
+### 2026-02-26 Addendum
+
+Research reproducibility and explainability controls were further hardened in the API detection stack:
+- Versioned fusion policy metadata (`fusion_policy_version`) is now attached to every final decision.
+- Decision trace is exported as ordered steps (`decision_path_steps`) in addition to the legacy string.
+- Evaluation output now includes mandatory `protocol` and `provenance` blocks.
+- Default protocol is documented and configured as `cross-dataset-holdout`.
+- Config now includes explicit documented score bands for deterministic and statistical semantics.
+
 ---
 
 ## Implementation Completed
