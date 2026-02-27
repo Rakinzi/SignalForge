@@ -78,6 +78,9 @@ function createAuthStore() {
 
 				if (!response.ok) {
 					const error = await response.json().catch(() => ({ detail: 'Login failed' }));
+					if (error.detail === 'email_not_verified') {
+						throw new Error('Email not verified. Check your inbox for a verification link.');
+					}
 					throw new Error(error.detail || 'Login failed');
 				}
 

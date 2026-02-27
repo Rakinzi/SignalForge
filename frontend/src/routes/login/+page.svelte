@@ -128,7 +128,7 @@
 			</form>
 
 			<!-- Register Link -->
-			<div class="mt-6 text-center">
+			<div class="mt-6 text-center space-y-2">
 				<p class="text-sm text-[var(--text-secondary)]">
 					Don't have an account?
 					<a
@@ -136,6 +136,11 @@
 						class="text-[var(--accent-primary)] hover:underline font-medium"
 					>
 						Register
+					</a>
+				</p>
+				<p class="text-sm text-[var(--text-secondary)]">
+					<a href="/forgot-password" class="text-[var(--accent-primary)] hover:underline font-medium">
+						Forgot password?
 					</a>
 				</p>
 			</div>

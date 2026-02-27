@@ -12,6 +12,14 @@ services:
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin}
       ANALYST_PASSWORD: ${ANALYST_PASSWORD:-4fd98b722498982657092a18d9703b464176c543a733e16d}
       VIEWER_PASSWORD: ${VIEWER_PASSWORD:-0af351b0a06143a05f5ac3f8fa6085afd440d7b4b60ae12b}
+      FRONTEND_BASE_URL: ${FRONTEND_BASE_URL:-http://localhost:8089}
+      AUTH_REQUIRE_EMAIL_VERIFIED: ${AUTH_REQUIRE_EMAIL_VERIFIED:-false}
+      SMTP_HOST: ${SMTP_HOST:-smtp.gmail.com}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_SECURE: ${SMTP_SECURE:-false}
+      SMTP_USER: ${SMTP_USER:-leightonsilver@gmail.com}
+      SMTP_PASS: ${SMTP_PASS:-qxfjyciwtityhvrz}
+      SMTP_FROM_EMAIL: ${SMTP_FROM_EMAIL:-leightonsilver@gmail.com}
     # no host port in dev; access via nginx
     command: ["uv", "run", "uvicorn", "api.app:app", "--reload", "--host", "0.0.0.0", "--port", "8000"]
     depends_on:

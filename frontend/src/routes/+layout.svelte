@@ -24,8 +24,14 @@
 
 	onMount(() => {
 		const unsubscribe = page.subscribe(($page) => {
-			// Check if current page is login or register
-			isAuthPage = $page.url.pathname === '/login' || $page.url.pathname === '/register';
+			// Check if current page is an auth page
+			const p = $page.url.pathname;
+			isAuthPage =
+				p === '/login' ||
+				p === '/register' ||
+				p === '/forgot-password' ||
+				p === '/reset-password' ||
+				p === '/verify-email';
 		});
 
 		const unsubscribeAuth = authStore.subscribe((auth) => {
@@ -35,7 +41,12 @@
 			if (auth.isLoading) return;
 
 			const currentPath = window.location.pathname;
-			const isOnAuthPage = currentPath === '/login' || currentPath === '/register';
+			const isOnAuthPage =
+				currentPath === '/login' ||
+				currentPath === '/register' ||
+				currentPath === '/forgot-password' ||
+				currentPath === '/reset-password' ||
+				currentPath === '/verify-email';
 
 			// Redirect to login if not authenticated and not on auth page
 			if (!auth.user && !isOnAuthPage) {
